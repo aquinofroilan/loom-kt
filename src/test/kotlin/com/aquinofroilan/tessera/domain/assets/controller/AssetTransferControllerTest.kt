@@ -50,7 +50,6 @@ class AssetTransferControllerTest {
     @MockitoBean
     private lateinit var assetTransferService: AssetTransferService
 
-
     @MockitoBean
     private lateinit var organizationStatusInterceptor: OrganizationStatusInterceptor
 
@@ -96,26 +95,28 @@ class AssetTransferControllerTest {
     private val testOrgId = UUID.fromString("00000000-0000-0000-0000-000000000001")
     private val testUserId = UUID.fromString("00000000-0000-0000-0000-000000000002")
     private val testAssetId = UUID.randomUUID()
-    
-    private val testUser = User(
-        uuid = testUserId,
-        username = "testuser",
-        email = "test@example.com",
-        passwordHash = "hash",
-        firstName = "Test",
-        lastName = "User",
-        organizationId = testOrgId,
-        isActive = true,
-    )
+
+    private val testUser =
+        User(
+            uuid = testUserId,
+            username = "testuser",
+            email = "test@example.com",
+            passwordHash = "hash",
+            firstName = "Test",
+            lastName = "User",
+            organizationId = testOrgId,
+            isActive = true,
+        )
 
     @BeforeEach
     fun setup() {
         val permissionAuthorities = listOf("assets:read", "assets:write").map { SimpleGrantedAuthority(it) }
         val authentication = UsernamePasswordAuthenticationToken(testUser, null, permissionAuthorities)
-        authentication.details = SessionContext(
-            sessionId = UUID.randomUUID(),
-            organizationId = testOrgId,
-        )
+        authentication.details =
+            SessionContext(
+                sessionId = UUID.randomUUID(),
+                organizationId = testOrgId,
+            )
         SecurityContextHolder.getContext().authentication = authentication
         `when`(authenticationContext.organizationId()).thenReturn(testOrgId)
         `when`(authenticationContext.userId()).thenReturn(testUserId)
@@ -124,31 +125,33 @@ class AssetTransferControllerTest {
 
     @Test
     fun `transferAsset should return 201 Created`() {
-        val request = AssetTransferRequest(
-            transferDate = LocalDate.now(),
-            toLocation = "New York Office",
-            reason = "Relocation"
-        )
+        val request =
+            AssetTransferRequest(
+                transferDate = LocalDate.now(),
+                toLocation = "New York Office",
+                reason = "Relocation",
+            )
 
-        val response = AssetTransferResponse(
-            id = UUID.randomUUID(),
-            assetId = testAssetId,
-            transferDate = request.transferDate.toString(),
-            fromLocation = "Old Office",
-            toLocation = "New York Office",
-            reason = "Relocation",
-            createdBy = testUserId,
-            createdAt = "2023-10-10T10:00:00Z"
-        )
+        val response =
+            AssetTransferResponse(
+                id = UUID.randomUUID(),
+                assetId = testAssetId,
+                transferDate = request.transferDate.toString(),
+                fromLocation = "Old Office",
+                toLocation = "New York Office",
+                reason = "Relocation",
+                createdBy = testUserId,
+                createdAt = "2023-10-10T10:00:00Z",
+            )
 
         `when`(assetTransferService.transferAsset(any(), any(), any(), any())).thenReturn(response)
 
-        mockMvc.perform(
-            post("/api/v1/assets/$testAssetId/transfers")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-        )
-            .andExpect(status().isCreated)
+        mockMvc
+            .perform(
+                post("/api/v1/assets/$testAssetId/transfers")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)),
+            ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.toLocation").value("New York Office"))
     }
 
@@ -156,7 +159,8 @@ class AssetTransferControllerTest {
     fun `listTransfers should return 200 OK`() {
         `when`(assetTransferService.getAssetTransfers(any(), any())).thenReturn(emptyList())
 
-        mockMvc.perform(get("/api/v1/assets/$testAssetId/transfers"))
+        mockMvc
+            .perform(get("/api/v1/assets/$testAssetId/transfers"))
             .andExpect(status().isOk)
     }
 }

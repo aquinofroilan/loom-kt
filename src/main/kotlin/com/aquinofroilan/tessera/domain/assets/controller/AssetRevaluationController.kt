@@ -3,9 +3,7 @@ package com.aquinofroilan.tessera.domain.assets.controller
 import com.aquinofroilan.tessera.annotation.LogLevel
 import com.aquinofroilan.tessera.annotation.Loggable
 import com.aquinofroilan.tessera.domain.assets.dto.AssetRevaluationRequest
-import com.aquinofroilan.tessera.domain.assets.dto.AssetRevaluationResponse
 import com.aquinofroilan.tessera.domain.assets.service.AssetRevaluationService
-import com.aquinofroilan.tessera.security.AuthenticationContext
 import com.aquinofroilan.tessera.security.CurrentOrganizationId
 import com.aquinofroilan.tessera.security.CurrentUserId
 import jakarta.validation.Valid

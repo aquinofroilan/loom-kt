@@ -20,7 +20,6 @@ import java.time.LocalDate
 import java.util.UUID
 
 class AssetTransferServiceTest {
-
     private val assetTransferRepository: AssetTransferRepository = mock()
     private val fixedAssetRepository: FixedAssetRepository = mock()
     private val fixedAssetService: FixedAssetService = mock()
@@ -35,23 +34,25 @@ class AssetTransferServiceTest {
 
     @BeforeEach
     fun setup() {
-        assetTransferService = AssetTransferService(
-            assetTransferRepository,
-            fixedAssetRepository,
-            fixedAssetService
-        )
+        assetTransferService =
+            AssetTransferService(
+                assetTransferRepository,
+                fixedAssetRepository,
+                fixedAssetService,
+            )
 
-        asset = FixedAsset(
-            id = assetId,
-            organizationId = orgId,
-            assetNumber = "FA-001",
-            name = "Laptop",
-            acquisitionDate = LocalDate.now().minusYears(1),
-            acquisitionCost = BigDecimal("1000.00"),
-            usefulLifeMonths = 36,
-            location = "HQ",
-            status = AssetStatus.ACTIVE
-        )
+        asset =
+            FixedAsset(
+                id = assetId,
+                organizationId = orgId,
+                assetNumber = "FA-001",
+                name = "Laptop",
+                acquisitionDate = LocalDate.now().minusYears(1),
+                acquisitionCost = BigDecimal("1000.00"),
+                usefulLifeMonths = 36,
+                location = "HQ",
+                status = AssetStatus.ACTIVE,
+            )
     }
 
     @Test
@@ -59,11 +60,12 @@ class AssetTransferServiceTest {
         whenever(fixedAssetService.getAsset(assetId, orgId)).thenReturn(asset)
         whenever(assetTransferRepository.save(any<AssetTransfer>())).thenAnswer { it.arguments[0] as AssetTransfer }
 
-        val request = AssetTransferRequest(
-            transferDate = LocalDate.now(),
-            toLocation = "Branch A",
-            reason = "Employee relocation"
-        )
+        val request =
+            AssetTransferRequest(
+                transferDate = LocalDate.now(),
+                toLocation = "Branch A",
+                reason = "Employee relocation",
+            )
 
         val response = assetTransferService.transferAsset(orgId, assetId, request, userId)
 
@@ -80,11 +82,12 @@ class AssetTransferServiceTest {
         asset.status = AssetStatus.DISPOSED
         whenever(fixedAssetService.getAsset(assetId, orgId)).thenReturn(asset)
 
-        val request = AssetTransferRequest(
-            transferDate = LocalDate.now(),
-            toLocation = "Branch A",
-            reason = "Employee relocation"
-        )
+        val request =
+            AssetTransferRequest(
+                transferDate = LocalDate.now(),
+                toLocation = "Branch A",
+                reason = "Employee relocation",
+            )
 
         assertThrows(BusinessRuleException::class.java) {
             assetTransferService.transferAsset(orgId, assetId, request, userId)

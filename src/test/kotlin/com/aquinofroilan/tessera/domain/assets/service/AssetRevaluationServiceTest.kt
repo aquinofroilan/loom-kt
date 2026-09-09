@@ -9,8 +9,8 @@ import com.aquinofroilan.tessera.domain.assets.repository.FixedAssetRepository
 import com.aquinofroilan.tessera.domain.finance.model.Account
 import com.aquinofroilan.tessera.domain.finance.model.AccountType
 import com.aquinofroilan.tessera.domain.finance.model.JournalEntry
-import com.aquinofroilan.tessera.domain.finance.model.JournalEntryStatus
 import com.aquinofroilan.tessera.domain.finance.model.JournalEntrySource
+import com.aquinofroilan.tessera.domain.finance.model.JournalEntryStatus
 import com.aquinofroilan.tessera.domain.finance.repository.AccountRepository
 import com.aquinofroilan.tessera.domain.finance.service.JournalEntryService
 import com.aquinofroilan.tessera.exception.BusinessRuleException
@@ -28,7 +28,6 @@ import java.time.LocalDate
 import java.util.UUID
 
 class AssetRevaluationServiceTest {
-
     private val assetRevaluationRepository: AssetRevaluationRepository = mock()
     private val fixedAssetRepository: FixedAssetRepository = mock()
     private val fixedAssetService: FixedAssetService = mock()
@@ -49,41 +48,45 @@ class AssetRevaluationServiceTest {
 
     @BeforeEach
     fun setup() {
-        assetRevaluationService = AssetRevaluationService(
-            assetRevaluationRepository,
-            fixedAssetRepository,
-            fixedAssetService,
-            journalEntryService,
-            accountRepository
-        )
+        assetRevaluationService =
+            AssetRevaluationService(
+                assetRevaluationRepository,
+                fixedAssetRepository,
+                fixedAssetService,
+                journalEntryService,
+                accountRepository,
+            )
 
-        asset = FixedAsset(
-            id = assetId,
-            organizationId = orgId,
-            assetNumber = "FA-001",
-            name = "Building",
-            acquisitionDate = LocalDate.now().minusYears(5),
-            acquisitionCost = BigDecimal("100000.00"),
-            usefulLifeMonths = 360,
-            assetAccountId = assetAccountId.toString(),
-            status = AssetStatus.ACTIVE
-        )
+        asset =
+            FixedAsset(
+                id = assetId,
+                organizationId = orgId,
+                assetNumber = "FA-001",
+                name = "Building",
+                acquisitionDate = LocalDate.now().minusYears(5),
+                acquisitionCost = BigDecimal("100000.00"),
+                usefulLifeMonths = 360,
+                assetAccountId = assetAccountId.toString(),
+                status = AssetStatus.ACTIVE,
+            )
 
-        assetAccount = Account(
-            id = assetAccountId,
-            organizationId = orgId,
-            code = "1500",
-            name = "Buildings",
-            type = AccountType.ASSET
-        )
+        assetAccount =
+            Account(
+                id = assetAccountId,
+                organizationId = orgId,
+                code = "1500",
+                name = "Buildings",
+                type = AccountType.ASSET,
+            )
 
-        revalAccount = Account(
-            id = revalAccountId,
-            organizationId = orgId,
-            code = "3500",
-            name = "Revaluation Reserve",
-            type = AccountType.EQUITY
-        )
+        revalAccount =
+            Account(
+                id = revalAccountId,
+                organizationId = orgId,
+                code = "3500",
+                name = "Revaluation Reserve",
+                type = AccountType.EQUITY,
+            )
     }
 
     @Test
@@ -91,27 +94,29 @@ class AssetRevaluationServiceTest {
         whenever(fixedAssetService.getAsset(assetId, orgId)).thenReturn(asset)
         whenever(accountRepository.findAllById(any())).thenReturn(listOf(assetAccount, revalAccount))
         whenever(assetRevaluationRepository.save(any<AssetRevaluation>())).thenAnswer { it.arguments[0] as AssetRevaluation }
-        
-        val je = JournalEntry(
-            id = UUID.randomUUID(), 
-            entryNumber = "JE-001", 
-            date = LocalDate.now(), 
-            description = "", 
-            organizationId = orgId, 
-            status = JournalEntryStatus.POSTED, 
-            source = JournalEntrySource.SYSTEM, 
-            sourceReference = "", 
-            lines = emptyList(), 
-            createdBy = userId
-        )
+
+        val je =
+            JournalEntry(
+                id = UUID.randomUUID(),
+                entryNumber = "JE-001",
+                date = LocalDate.now(),
+                description = "",
+                organizationId = orgId,
+                status = JournalEntryStatus.POSTED,
+                source = JournalEntrySource.SYSTEM,
+                sourceReference = "",
+                lines = emptyList(),
+                createdBy = userId,
+            )
         whenever(journalEntryService.createSystemEntry(any(), any(), any(), any(), any(), any())).thenReturn(je)
 
-        val request = AssetRevaluationRequest(
-            revaluationDate = LocalDate.now(),
-            newCost = BigDecimal("150000.00"),
-            revaluationAccountId = revalAccountId,
-            reason = "Market appraisal"
-        )
+        val request =
+            AssetRevaluationRequest(
+                revaluationDate = LocalDate.now(),
+                newCost = BigDecimal("150000.00"),
+                revaluationAccountId = revalAccountId,
+                reason = "Market appraisal",
+            )
 
         val response = assetRevaluationService.revalueAsset(orgId, assetId, request, userId)
 
@@ -121,14 +126,14 @@ class AssetRevaluationServiceTest {
 
         verify(fixedAssetRepository).save(asset)
         assertEquals(BigDecimal("150000.00"), asset.acquisitionCost)
-        
+
         verify(journalEntryService).createSystemEntry(
             date = eq(request.revaluationDate!!),
             description = any(),
             organizationId = eq(orgId),
             lines = any(),
             sourceReference = any(),
-            createdBy = eq(userId)
+            createdBy = eq(userId),
         )
     }
 
@@ -137,12 +142,13 @@ class AssetRevaluationServiceTest {
         asset.status = AssetStatus.DISPOSED
         whenever(fixedAssetService.getAsset(assetId, orgId)).thenReturn(asset)
 
-        val request = AssetRevaluationRequest(
-            revaluationDate = LocalDate.now(),
-            newCost = BigDecimal("150000.00"),
-            revaluationAccountId = revalAccountId,
-            reason = "Market appraisal"
-        )
+        val request =
+            AssetRevaluationRequest(
+                revaluationDate = LocalDate.now(),
+                newCost = BigDecimal("150000.00"),
+                revaluationAccountId = revalAccountId,
+                reason = "Market appraisal",
+            )
 
         assertThrows(BusinessRuleException::class.java) {
             assetRevaluationService.revalueAsset(orgId, assetId, request, userId)

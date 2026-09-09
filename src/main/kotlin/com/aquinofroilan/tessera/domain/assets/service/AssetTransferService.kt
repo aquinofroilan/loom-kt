@@ -7,7 +7,6 @@ import com.aquinofroilan.tessera.domain.assets.model.AssetTransfer
 import com.aquinofroilan.tessera.domain.assets.repository.AssetTransferRepository
 import com.aquinofroilan.tessera.domain.assets.repository.FixedAssetRepository
 import com.aquinofroilan.tessera.exception.BusinessRuleException
-import com.aquinofroilan.tessera.exception.ResourceNotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -33,15 +32,16 @@ class AssetTransferService(
             throw BusinessRuleException("Only active assets can be transferred")
         }
 
-        val transfer = AssetTransfer(
-            organizationId = organizationId,
-            assetId = assetId,
-            transferDate = request.transferDate!!,
-            fromLocation = asset.location,
-            toLocation = request.toLocation!!,
-            reason = request.reason,
-            createdBy = userId,
-        )
+        val transfer =
+            AssetTransfer(
+                organizationId = organizationId,
+                assetId = assetId,
+                transferDate = request.transferDate!!,
+                fromLocation = asset.location,
+                toLocation = request.toLocation!!,
+                reason = request.reason,
+                createdBy = userId,
+            )
 
         // Update the asset's location
         asset.location = request.toLocation
@@ -56,15 +56,14 @@ class AssetTransferService(
     fun getAssetTransfers(
         organizationId: UUID,
         assetId: UUID,
-    ): List<AssetTransferResponse> {
-        return assetTransferRepository
+    ): List<AssetTransferResponse> =
+        assetTransferRepository
             .findByOrganizationIdAndAssetId(organizationId, assetId)
             .sortedByDescending { it.transferDate }
             .map { mapToResponse(it) }
-    }
 
-    private fun mapToResponse(transfer: AssetTransfer): AssetTransferResponse {
-        return AssetTransferResponse(
+    private fun mapToResponse(transfer: AssetTransfer): AssetTransferResponse =
+        AssetTransferResponse(
             id = transfer.id,
             assetId = transfer.assetId,
             transferDate = transfer.transferDate.toString(),
@@ -74,5 +73,4 @@ class AssetTransferService(
             createdBy = transfer.createdBy,
             createdAt = transfer.createdAt?.toString() ?: "",
         )
-    }
 }

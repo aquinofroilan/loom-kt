@@ -51,7 +51,6 @@ class AssetRevaluationControllerTest {
     @MockitoBean
     private lateinit var assetRevaluationService: AssetRevaluationService
 
-
     @MockitoBean
     private lateinit var organizationStatusInterceptor: OrganizationStatusInterceptor
 
@@ -97,26 +96,28 @@ class AssetRevaluationControllerTest {
     private val testOrgId = UUID.fromString("00000000-0000-0000-0000-000000000001")
     private val testUserId = UUID.fromString("00000000-0000-0000-0000-000000000002")
     private val testAssetId = UUID.randomUUID()
-    
-    private val testUser = User(
-        uuid = testUserId,
-        username = "testuser",
-        email = "test@example.com",
-        passwordHash = "hash",
-        firstName = "Test",
-        lastName = "User",
-        organizationId = testOrgId,
-        isActive = true,
-    )
+
+    private val testUser =
+        User(
+            uuid = testUserId,
+            username = "testuser",
+            email = "test@example.com",
+            passwordHash = "hash",
+            firstName = "Test",
+            lastName = "User",
+            organizationId = testOrgId,
+            isActive = true,
+        )
 
     @BeforeEach
     fun setup() {
         val permissionAuthorities = listOf("assets:read", "assets:write").map { SimpleGrantedAuthority(it) }
         val authentication = UsernamePasswordAuthenticationToken(testUser, null, permissionAuthorities)
-        authentication.details = SessionContext(
-            sessionId = UUID.randomUUID(),
-            organizationId = testOrgId,
-        )
+        authentication.details =
+            SessionContext(
+                sessionId = UUID.randomUUID(),
+                organizationId = testOrgId,
+            )
         SecurityContextHolder.getContext().authentication = authentication
         `when`(authenticationContext.organizationId()).thenReturn(testOrgId)
         `when`(authenticationContext.userId()).thenReturn(testUserId)
@@ -125,35 +126,37 @@ class AssetRevaluationControllerTest {
 
     @Test
     fun `revalueAsset should return 201 Created`() {
-        val request = AssetRevaluationRequest(
-            revaluationDate = LocalDate.now(),
-            newCost = BigDecimal("15000.00"),
-            revaluationAccountId = UUID.randomUUID(),
-            reason = "Market value adjustment"
-        )
+        val request =
+            AssetRevaluationRequest(
+                revaluationDate = LocalDate.now(),
+                newCost = BigDecimal("15000.00"),
+                revaluationAccountId = UUID.randomUUID(),
+                reason = "Market value adjustment",
+            )
 
-        val response = AssetRevaluationResponse(
-            id = UUID.randomUUID(),
-            assetId = testAssetId,
-            revaluationDate = request.revaluationDate.toString(),
-            previousCost = BigDecimal("10000.00"),
-            newCost = request.newCost!!,
-            revaluationAmount = BigDecimal("5000.00"),
-            revaluationAccountId = request.revaluationAccountId!!,
-            journalEntryId = UUID.randomUUID(),
-            reason = "Market value adjustment",
-            createdBy = testUserId,
-            createdAt = "2023-10-10T10:00:00Z"
-        )
+        val response =
+            AssetRevaluationResponse(
+                id = UUID.randomUUID(),
+                assetId = testAssetId,
+                revaluationDate = request.revaluationDate.toString(),
+                previousCost = BigDecimal("10000.00"),
+                newCost = request.newCost!!,
+                revaluationAmount = BigDecimal("5000.00"),
+                revaluationAccountId = request.revaluationAccountId!!,
+                journalEntryId = UUID.randomUUID(),
+                reason = "Market value adjustment",
+                createdBy = testUserId,
+                createdAt = "2023-10-10T10:00:00Z",
+            )
 
         `when`(assetRevaluationService.revalueAsset(any(), any(), any(), any())).thenReturn(response)
 
-        mockMvc.perform(
-            post("/api/v1/assets/$testAssetId/revaluations")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-        )
-            .andExpect(status().isCreated)
+        mockMvc
+            .perform(
+                post("/api/v1/assets/$testAssetId/revaluations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)),
+            ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.newCost").value(15000.0))
     }
 
@@ -161,7 +164,8 @@ class AssetRevaluationControllerTest {
     fun `listRevaluations should return 200 OK`() {
         `when`(assetRevaluationService.getAssetRevaluations(any(), any())).thenReturn(emptyList())
 
-        mockMvc.perform(get("/api/v1/assets/$testAssetId/revaluations"))
+        mockMvc
+            .perform(get("/api/v1/assets/$testAssetId/revaluations"))
             .andExpect(status().isOk)
     }
 }

@@ -46,9 +46,10 @@ class AssetRevaluationService(
             throw BusinessRuleException("New cost is the same as the previous cost")
         }
 
-        val assetAccountId = asset.assetAccountId?.let { UUID.fromString(it) }
-            ?: throw BusinessRuleException("Asset does not have an asset account configured")
-        
+        val assetAccountId =
+            asset.assetAccountId?.let { UUID.fromString(it) }
+                ?: throw BusinessRuleException("Asset does not have an asset account configured")
+
         val revaluationAccountId = request.revaluationAccountId!!
 
         val accounts = accountRepository.findAllById(listOf(assetAccountId, revaluationAccountId)).associateBy { it.id }
@@ -66,7 +67,7 @@ class AssetRevaluationService(
                     accountName = assetAccount.name,
                     debit = revaluationAmount,
                     credit = BigDecimal.ZERO,
-                )
+                ),
             )
             lines.add(
                 JournalEntryLine(
@@ -75,7 +76,7 @@ class AssetRevaluationService(
                     accountName = revalAccount.name,
                     debit = BigDecimal.ZERO,
                     credit = revaluationAmount,
-                )
+                ),
             )
         } else {
             // Revaluation loss / impairment (Dr Revaluation Reserve / Impairment Expense, Cr Asset)
@@ -87,7 +88,7 @@ class AssetRevaluationService(
                     accountName = revalAccount.name,
                     debit = lossAmount,
                     credit = BigDecimal.ZERO,
-                )
+                ),
             )
             lines.add(
                 JournalEntryLine(
@@ -96,32 +97,34 @@ class AssetRevaluationService(
                     accountName = assetAccount.name,
                     debit = BigDecimal.ZERO,
                     credit = lossAmount,
-                )
+                ),
             )
         }
 
-        var revaluation = AssetRevaluation(
-            organizationId = organizationId,
-            assetId = assetId,
-            revaluationDate = request.revaluationDate!!,
-            previousCost = previousCost,
-            newCost = newCost,
-            revaluationAmount = revaluationAmount,
-            revaluationAccountId = revaluationAccountId,
-            reason = request.reason,
-            createdBy = userId,
-        )
+        var revaluation =
+            AssetRevaluation(
+                organizationId = organizationId,
+                assetId = assetId,
+                revaluationDate = request.revaluationDate!!,
+                previousCost = previousCost,
+                newCost = newCost,
+                revaluationAmount = revaluationAmount,
+                revaluationAccountId = revaluationAccountId,
+                reason = request.reason,
+                createdBy = userId,
+            )
 
         revaluation = assetRevaluationRepository.save(revaluation)
 
-        val journalEntry = journalEntryService.createSystemEntry(
-            date = request.revaluationDate,
-            description = "Revaluation of asset ${asset.assetNumber}",
-            organizationId = organizationId,
-            lines = lines,
-            sourceReference = "asset_revaluation:${revaluation.id}",
-            createdBy = userId,
-        )
+        val journalEntry =
+            journalEntryService.createSystemEntry(
+                date = request.revaluationDate,
+                description = "Revaluation of asset ${asset.assetNumber}",
+                organizationId = organizationId,
+                lines = lines,
+                sourceReference = "asset_revaluation:${revaluation.id}",
+                createdBy = userId,
+            )
 
         revaluation.journalEntryId = journalEntry.id
         assetRevaluationRepository.save(revaluation)
@@ -138,15 +141,14 @@ class AssetRevaluationService(
     fun getAssetRevaluations(
         organizationId: UUID,
         assetId: UUID,
-    ): List<AssetRevaluationResponse> {
-        return assetRevaluationRepository
+    ): List<AssetRevaluationResponse> =
+        assetRevaluationRepository
             .findByOrganizationIdAndAssetId(organizationId, assetId)
             .sortedByDescending { it.revaluationDate }
             .map { mapToResponse(it) }
-    }
 
-    private fun mapToResponse(reval: AssetRevaluation): AssetRevaluationResponse {
-        return AssetRevaluationResponse(
+    private fun mapToResponse(reval: AssetRevaluation): AssetRevaluationResponse =
+        AssetRevaluationResponse(
             id = reval.id,
             assetId = reval.assetId,
             revaluationDate = reval.revaluationDate.toString(),
@@ -159,5 +161,4 @@ class AssetRevaluationService(
             createdBy = reval.createdBy,
             createdAt = reval.createdAt?.toString() ?: "",
         )
-    }
 }
