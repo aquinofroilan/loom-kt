@@ -52,15 +52,15 @@ data class ExpenseClaim(
     @LastModifiedDate
     @Column(name = "updated_at")
     var updatedAt: LocalDateTime? = null,
-
     @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.EAGER)
     @JoinColumn(name = "claim_id")
     @OrderBy("lineNumber ASC")
     var lines: MutableList<ExpenseClaimLine> = mutableListOf(),
 ) {
     fun calculateTotal() {
-        totalReimbursementAmount = lines.fold(BigDecimal.ZERO) { acc, line ->
-            acc.add(line.reimbursementAmount)
-        }
+        totalReimbursementAmount =
+            lines.fold(BigDecimal.ZERO) { acc, line ->
+                acc.add(line.reimbursementAmount)
+            }
     }
 }

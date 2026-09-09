@@ -39,41 +39,44 @@ class ExpenseClaimServiceTest {
 
     @BeforeEach
     fun setup() {
-        expenseClaimService = ExpenseClaimService(
-            expenseClaimRepository,
-            accountRepository,
-            journalEntryService
-        )
+        expenseClaimService =
+            ExpenseClaimService(
+                expenseClaimRepository,
+                accountRepository,
+                journalEntryService,
+            )
     }
 
     @Test
     fun `createClaim calculates total reimbursement amount correctly`() {
         whenever(expenseClaimRepository.save(any<ExpenseClaim>())).thenAnswer { it.arguments[0] as ExpenseClaim }
 
-        val request = CreateExpenseClaimRequest(
-            employeeId = empId,
-            claimDate = LocalDate.now(),
-            purpose = "Business Trip",
-            reimbursementCurrency = "USD",
-            lines = listOf(
-                ExpenseClaimLineRequest(
-                    expenseDate = LocalDate.now(),
-                    category = "Meals",
-                    description = "Dinner",
-                    originalCurrency = "EUR",
-                    originalAmount = BigDecimal("100"),
-                    exchangeRate = BigDecimal("1.1000")
-                ),
-                ExpenseClaimLineRequest(
-                    expenseDate = LocalDate.now(),
-                    category = "Transport",
-                    description = "Taxi",
-                    originalCurrency = "USD",
-                    originalAmount = BigDecimal("50"),
-                    exchangeRate = BigDecimal("1.0000")
-                )
+        val request =
+            CreateExpenseClaimRequest(
+                employeeId = empId,
+                claimDate = LocalDate.now(),
+                purpose = "Business Trip",
+                reimbursementCurrency = "USD",
+                lines =
+                    listOf(
+                        ExpenseClaimLineRequest(
+                            expenseDate = LocalDate.now(),
+                            category = "Meals",
+                            description = "Dinner",
+                            originalCurrency = "EUR",
+                            originalAmount = BigDecimal("100"),
+                            exchangeRate = BigDecimal("1.1000"),
+                        ),
+                        ExpenseClaimLineRequest(
+                            expenseDate = LocalDate.now(),
+                            category = "Transport",
+                            description = "Taxi",
+                            originalCurrency = "USD",
+                            originalAmount = BigDecimal("50"),
+                            exchangeRate = BigDecimal("1.0000"),
+                        ),
+                    ),
             )
-        )
 
         val response = expenseClaimService.createClaim(orgId, userId, request)
 
@@ -85,15 +88,16 @@ class ExpenseClaimServiceTest {
     @Test
     fun `submitClaim changes status to SUBMITTED`() {
         val claimId = UUID.randomUUID()
-        val claim = ExpenseClaim(
-            id = claimId,
-            organizationId = orgId,
-            employeeId = empId,
-            claimDate = LocalDate.now(),
-            purpose = "Business Trip",
-            reimbursementCurrency = "USD",
-            createdBy = userId
-        )
+        val claim =
+            ExpenseClaim(
+                id = claimId,
+                organizationId = orgId,
+                employeeId = empId,
+                claimDate = LocalDate.now(),
+                purpose = "Business Trip",
+                reimbursementCurrency = "USD",
+                createdBy = userId,
+            )
         whenever(expenseClaimRepository.findById(claimId)).thenReturn(Optional.of(claim))
         whenever(expenseClaimRepository.save(any<ExpenseClaim>())).thenAnswer { it.arguments[0] as ExpenseClaim }
 
@@ -105,17 +109,18 @@ class ExpenseClaimServiceTest {
     @Test
     fun `approveClaim posts journal entry and updates status`() {
         val claimId = UUID.randomUUID()
-        val claim = ExpenseClaim(
-            id = claimId,
-            organizationId = orgId,
-            employeeId = empId,
-            claimDate = LocalDate.now(),
-            purpose = "Business Trip",
-            status = ExpenseClaimStatus.SUBMITTED,
-            reimbursementCurrency = "USD",
-            totalReimbursementAmount = BigDecimal("160.00"),
-            createdBy = userId
-        )
+        val claim =
+            ExpenseClaim(
+                id = claimId,
+                organizationId = orgId,
+                employeeId = empId,
+                claimDate = LocalDate.now(),
+                purpose = "Business Trip",
+                status = ExpenseClaimStatus.SUBMITTED,
+                reimbursementCurrency = "USD",
+                totalReimbursementAmount = BigDecimal("160.00"),
+                createdBy = userId,
+            )
 
         val expAccountId = UUID.randomUUID()
         val payAccountId = UUID.randomUUID()
@@ -127,18 +132,19 @@ class ExpenseClaimServiceTest {
         whenever(accountRepository.findAllById(any())).thenReturn(listOf(expAccount, payAccount))
         whenever(expenseClaimRepository.save(any<ExpenseClaim>())).thenAnswer { it.arguments[0] as ExpenseClaim }
 
-        val je = JournalEntry(
-            id = UUID.randomUUID(), 
-            entryNumber = "JE-001", 
-            date = LocalDate.now(), 
-            description = "", 
-            organizationId = orgId, 
-            status = JournalEntryStatus.POSTED, 
-            source = JournalEntrySource.SYSTEM, 
-            sourceReference = "", 
-            lines = emptyList(), 
-            createdBy = userId
-        )
+        val je =
+            JournalEntry(
+                id = UUID.randomUUID(),
+                entryNumber = "JE-001",
+                date = LocalDate.now(),
+                description = "",
+                organizationId = orgId,
+                status = JournalEntryStatus.POSTED,
+                source = JournalEntrySource.SYSTEM,
+                sourceReference = "",
+                lines = emptyList(),
+                createdBy = userId,
+            )
         whenever(journalEntryService.createSystemEntry(any(), any(), any(), any(), any(), any())).thenReturn(je)
 
         val response = expenseClaimService.approveClaim(orgId, claimId, userId, expAccountId, payAccountId)
@@ -152,23 +158,24 @@ class ExpenseClaimServiceTest {
             organizationId = eq(orgId),
             lines = any(),
             sourceReference = eq("expense_claim:${claim.id}"),
-            createdBy = eq(userId)
+            createdBy = eq(userId),
         )
     }
 
     @Test
     fun `approveClaim throws exception if not submitted`() {
         val claimId = UUID.randomUUID()
-        val claim = ExpenseClaim(
-            id = claimId,
-            organizationId = orgId,
-            employeeId = empId,
-            claimDate = LocalDate.now(),
-            purpose = "Business Trip",
-            status = ExpenseClaimStatus.DRAFT,
-            reimbursementCurrency = "USD",
-            createdBy = userId
-        )
+        val claim =
+            ExpenseClaim(
+                id = claimId,
+                organizationId = orgId,
+                employeeId = empId,
+                claimDate = LocalDate.now(),
+                purpose = "Business Trip",
+                status = ExpenseClaimStatus.DRAFT,
+                reimbursementCurrency = "USD",
+                createdBy = userId,
+            )
         whenever(expenseClaimRepository.findById(claimId)).thenReturn(Optional.of(claim))
 
         assertThrows(BusinessRuleException::class.java) {

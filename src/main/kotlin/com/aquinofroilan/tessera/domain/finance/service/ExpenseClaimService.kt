@@ -36,33 +36,36 @@ class ExpenseClaimService(
         val linesRequest = request.lines ?: throw BusinessRuleException("At least one line item is required")
         if (linesRequest.isEmpty()) throw BusinessRuleException("At least one line item is required")
 
-        val claim = ExpenseClaim(
-            organizationId = organizationId,
-            employeeId = employeeId,
-            claimDate = request.claimDate!!,
-            purpose = request.purpose!!,
-            status = ExpenseClaimStatus.DRAFT,
-            reimbursementCurrency = request.reimbursementCurrency!!,
-            createdBy = userId,
-        )
+        val claim =
+            ExpenseClaim(
+                organizationId = organizationId,
+                employeeId = employeeId,
+                claimDate = request.claimDate!!,
+                purpose = request.purpose!!,
+                status = ExpenseClaimStatus.DRAFT,
+                reimbursementCurrency = request.reimbursementCurrency!!,
+                createdBy = userId,
+            )
 
         linesRequest.forEachIndexed { index, lineReq ->
-            val reimbursementAmount = lineReq.originalAmount!!
-                .multiply(lineReq.exchangeRate)
-                .setScale(4, RoundingMode.HALF_UP)
-            
-            val line = ExpenseClaimLine(
-                lineNumber = index + 1,
-                expenseDate = lineReq.expenseDate!!,
-                category = lineReq.category!!,
-                description = lineReq.description,
-                originalCurrency = lineReq.originalCurrency!!,
-                originalAmount = lineReq.originalAmount,
-                exchangeRate = lineReq.exchangeRate,
-                reimbursementAmount = reimbursementAmount,
-                projectId = lineReq.projectId,
-                receiptUrl = lineReq.receiptUrl,
-            )
+            val reimbursementAmount =
+                lineReq.originalAmount!!
+                    .multiply(lineReq.exchangeRate)
+                    .setScale(4, RoundingMode.HALF_UP)
+
+            val line =
+                ExpenseClaimLine(
+                    lineNumber = index + 1,
+                    expenseDate = lineReq.expenseDate!!,
+                    category = lineReq.category!!,
+                    description = lineReq.description,
+                    originalCurrency = lineReq.originalCurrency!!,
+                    originalAmount = lineReq.originalAmount,
+                    exchangeRate = lineReq.exchangeRate,
+                    reimbursementAmount = reimbursementAmount,
+                    projectId = lineReq.projectId,
+                    receiptUrl = lineReq.receiptUrl,
+                )
             claim.lines.add(line)
         }
 
@@ -108,7 +111,7 @@ class ExpenseClaimService(
         val payAccount = accounts[payableAccountId] ?: throw BusinessRuleException("Payable account not found")
 
         val lines = mutableListOf<JournalEntryLine>()
-        
+
         // Debit Expense
         lines.add(
             JournalEntryLine(
@@ -117,7 +120,7 @@ class ExpenseClaimService(
                 accountName = expAccount.name,
                 debit = claim.totalReimbursementAmount,
                 credit = BigDecimal.ZERO,
-            )
+            ),
         )
         // Credit Payable
         lines.add(
@@ -127,17 +130,18 @@ class ExpenseClaimService(
                 accountName = payAccount.name,
                 debit = BigDecimal.ZERO,
                 credit = claim.totalReimbursementAmount,
-            )
+            ),
         )
 
-        val je = journalEntryService.createSystemEntry(
-            date = claim.claimDate,
-            description = "Expense Claim Approval - ${claim.purpose}",
-            organizationId = organizationId,
-            lines = lines,
-            sourceReference = "expense_claim:${claim.id}",
-            createdBy = userId,
-        )
+        val je =
+            journalEntryService.createSystemEntry(
+                date = claim.claimDate,
+                description = "Expense Claim Approval - ${claim.purpose}",
+                organizationId = organizationId,
+                lines = lines,
+                sourceReference = "expense_claim:${claim.id}",
+                createdBy = userId,
+            )
 
         claim.status = ExpenseClaimStatus.APPROVED
         claim.journalEntryId = je.id
@@ -163,31 +167,40 @@ class ExpenseClaimService(
         return mapToResponse(saved)
     }
 
-    fun getClaim(claimId: UUID, organizationId: UUID): ExpenseClaim {
-        return expenseClaimRepository.findById(claimId).orElseThrow {
-            ResourceNotFoundException("ExpenseClaim not found: $claimId")
-        }.also {
-            if (it.organizationId != organizationId) {
-                throw BusinessRuleException("Expense claim does not belong to organization")
+    fun getClaim(
+        claimId: UUID,
+        organizationId: UUID,
+    ): ExpenseClaim =
+        expenseClaimRepository
+            .findById(claimId)
+            .orElseThrow {
+                ResourceNotFoundException("ExpenseClaim not found: $claimId")
+            }.also {
+                if (it.organizationId != organizationId) {
+                    throw BusinessRuleException("Expense claim does not belong to organization")
+                }
             }
-        }
-    }
 
-    fun getClaimResponse(claimId: UUID, organizationId: UUID): ExpenseClaimResponse {
-        return mapToResponse(getClaim(claimId, organizationId))
-    }
+    fun getClaimResponse(
+        claimId: UUID,
+        organizationId: UUID,
+    ): ExpenseClaimResponse = mapToResponse(getClaim(claimId, organizationId))
 
-    fun listClaims(organizationId: UUID, employeeId: UUID? = null): List<ExpenseClaimResponse> {
-        val claims = if (employeeId != null) {
-            expenseClaimRepository.findByOrganizationIdAndEmployeeId(organizationId, employeeId)
-        } else {
-            expenseClaimRepository.findByOrganizationId(organizationId)
-        }
+    fun listClaims(
+        organizationId: UUID,
+        employeeId: UUID? = null,
+    ): List<ExpenseClaimResponse> {
+        val claims =
+            if (employeeId != null) {
+                expenseClaimRepository.findByOrganizationIdAndEmployeeId(organizationId, employeeId)
+            } else {
+                expenseClaimRepository.findByOrganizationId(organizationId)
+            }
         return claims.map { mapToResponse(it) }
     }
 
-    private fun mapToResponse(claim: ExpenseClaim): ExpenseClaimResponse {
-        return ExpenseClaimResponse(
+    private fun mapToResponse(claim: ExpenseClaim): ExpenseClaimResponse =
+        ExpenseClaimResponse(
             id = claim.id,
             organizationId = claim.organizationId,
             employeeId = claim.employeeId,
@@ -201,21 +214,21 @@ class ExpenseClaimService(
             createdBy = claim.createdBy,
             createdAt = claim.createdAt?.toString() ?: "",
             updatedAt = claim.updatedAt?.toString(),
-            lines = claim.lines.map { line ->
-                ExpenseClaimLineResponse(
-                    id = line.id,
-                    lineNumber = line.lineNumber,
-                    expenseDate = line.expenseDate.toString(),
-                    category = line.category,
-                    description = line.description,
-                    originalCurrency = line.originalCurrency,
-                    originalAmount = line.originalAmount,
-                    exchangeRate = line.exchangeRate,
-                    reimbursementAmount = line.reimbursementAmount,
-                    projectId = line.projectId,
-                    receiptUrl = line.receiptUrl,
-                )
-            }
+            lines =
+                claim.lines.map { line ->
+                    ExpenseClaimLineResponse(
+                        id = line.id,
+                        lineNumber = line.lineNumber,
+                        expenseDate = line.expenseDate.toString(),
+                        category = line.category,
+                        description = line.description,
+                        originalCurrency = line.originalCurrency,
+                        originalAmount = line.originalAmount,
+                        exchangeRate = line.exchangeRate,
+                        reimbursementAmount = line.reimbursementAmount,
+                        projectId = line.projectId,
+                        receiptUrl = line.receiptUrl,
+                    )
+                },
         )
-    }
 }

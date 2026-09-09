@@ -10,7 +10,6 @@ import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -50,8 +49,7 @@ class ExpenseClaimController(
     @PreAuthorize("hasPermission(null, 'finance:read') or hasPermission(null, 'expenses:read')")
     fun getExpenseClaim(
         @PathVariable id: UUID,
-    ): ExpenseClaimResponse =
-        expenseClaimService.getClaimResponse(id, authenticationContext.organizationId()!!)
+    ): ExpenseClaimResponse = expenseClaimService.getClaimResponse(id, authenticationContext.organizationId()!!)
 
     @PostMapping("/{id}/submit")
     @PreAuthorize("hasPermission(null, 'finance:write') or hasPermission(null, 'expenses:write')")

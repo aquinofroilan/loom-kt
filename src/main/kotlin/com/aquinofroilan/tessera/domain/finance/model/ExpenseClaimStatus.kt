@@ -5,5 +5,5 @@ enum class ExpenseClaimStatus {
     SUBMITTED,
     APPROVED,
     REJECTED,
-    PAID
+    PAID,
 }
