@@ -4,12 +4,15 @@ import com.aquinofroilan.tessera.domain.finance.dto.CreateExpenseClaimRequest
 import com.aquinofroilan.tessera.domain.finance.dto.ExpenseClaimLineRequest
 import com.aquinofroilan.tessera.domain.finance.model.Account
 import com.aquinofroilan.tessera.domain.finance.model.AccountType
+import com.aquinofroilan.tessera.domain.finance.model.ExpenseCategory
 import com.aquinofroilan.tessera.domain.finance.model.ExpenseClaim
+import com.aquinofroilan.tessera.domain.finance.model.ExpenseClaimLine
 import com.aquinofroilan.tessera.domain.finance.model.ExpenseClaimStatus
 import com.aquinofroilan.tessera.domain.finance.model.JournalEntry
 import com.aquinofroilan.tessera.domain.finance.model.JournalEntrySource
 import com.aquinofroilan.tessera.domain.finance.model.JournalEntryStatus
 import com.aquinofroilan.tessera.domain.finance.repository.AccountRepository
+import com.aquinofroilan.tessera.domain.finance.repository.ExpenseCategoryRepository
 import com.aquinofroilan.tessera.domain.finance.repository.ExpenseClaimRepository
 import com.aquinofroilan.tessera.exception.BusinessRuleException
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -30,6 +33,7 @@ class ExpenseClaimServiceTest {
     private val expenseClaimRepository: ExpenseClaimRepository = mock()
     private val accountRepository: AccountRepository = mock()
     private val journalEntryService: JournalEntryService = mock()
+    private val expenseCategoryRepository: ExpenseCategoryRepository = mock()
 
     private lateinit var expenseClaimService: ExpenseClaimService
 
@@ -44,6 +48,7 @@ class ExpenseClaimServiceTest {
                 expenseClaimRepository,
                 accountRepository,
                 journalEntryService,
+                expenseCategoryRepository,
             )
     }
 
@@ -258,5 +263,56 @@ class ExpenseClaimServiceTest {
         assertThrows(BusinessRuleException::class.java) {
             expenseClaimService.reimburseClaim(orgId, claimId, userId, UUID.randomUUID(), UUID.randomUUID())
         }
+    }
+
+    @Test
+    fun `submitClaim throws exception if policy limit exceeded`() {
+        val categoryId = UUID.randomUUID()
+        val claimId = UUID.randomUUID()
+
+        val claim =
+            ExpenseClaim(
+                id = claimId,
+                organizationId = orgId,
+                employeeId = empId,
+                claimDate = LocalDate.now(),
+                purpose = "Business Trip",
+                status = ExpenseClaimStatus.DRAFT,
+                reimbursementCurrency = "USD",
+                createdBy = userId,
+            )
+
+        val line =
+            ExpenseClaimLine(
+                lineNumber = 1,
+                expenseDate = LocalDate.now(),
+                category = "Meals",
+                categoryId = categoryId,
+                originalCurrency = "USD",
+                originalAmount = BigDecimal("100"),
+                reimbursementAmount = BigDecimal("100"),
+            )
+        claim.lines.add(line)
+
+        val category =
+            ExpenseCategory(
+                id = categoryId,
+                organizationId = orgId,
+                name = "Meals",
+                expenseAccountId = UUID.randomUUID(),
+                policyLimit = BigDecimal("50"),
+                limitCurrency = "USD",
+                createdBy = userId,
+            )
+
+        whenever(expenseClaimRepository.findById(claimId)).thenReturn(Optional.of(claim))
+        whenever(expenseCategoryRepository.findById(categoryId)).thenReturn(Optional.of(category))
+
+        val ex =
+            assertThrows(BusinessRuleException::class.java) {
+                expenseClaimService.submitClaim(orgId, claimId, userId)
+            }
+
+        assert(ex.message!!.contains("exceeds policy limit"))
     }
 }
