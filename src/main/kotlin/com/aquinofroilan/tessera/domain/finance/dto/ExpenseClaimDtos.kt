@@ -72,6 +72,7 @@ data class ExpenseClaimResponse(
     val totalReimbursementAmount: BigDecimal,
     val workflowInstanceId: UUID?,
     val journalEntryId: UUID?,
+    val paymentJournalEntryId: UUID?,
     val createdBy: UUID,
     val createdAt: String,
     val updatedAt: String?,

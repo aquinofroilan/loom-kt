@@ -87,4 +87,19 @@ class ExpenseClaimController(
             claimId = id,
             userId = authenticationContext.userId()!!,
         )
+
+    @PostMapping("/{id}/reimburse")
+    @PreAuthorize("hasPermission(null, 'finance:write')")
+    fun reimburseExpenseClaim(
+        @PathVariable id: UUID,
+        @RequestParam payableAccountId: UUID,
+        @RequestParam cashAccountId: UUID,
+    ): ExpenseClaimResponse =
+        expenseClaimService.reimburseClaim(
+            organizationId = authenticationContext.organizationId()!!,
+            claimId = id,
+            userId = authenticationContext.userId()!!,
+            payableAccountId = payableAccountId,
+            cashAccountId = cashAccountId,
+        )
 }

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.LocalDate
 import java.util.UUID
 
 @Service
@@ -199,6 +200,63 @@ class ExpenseClaimService(
         return claims.map { mapToResponse(it) }
     }
 
+    @Transactional
+    fun reimburseClaim(
+        organizationId: UUID,
+        claimId: UUID,
+        userId: UUID,
+        payableAccountId: UUID,
+        cashAccountId: UUID,
+    ): ExpenseClaimResponse {
+        val claim = getClaim(claimId, organizationId)
+        if (claim.status != ExpenseClaimStatus.APPROVED) {
+            throw BusinessRuleException("Only approved claims can be reimbursed")
+        }
+
+        val accounts = accountRepository.findAllById(listOf(payableAccountId, cashAccountId)).associateBy { it.id }
+        val payAccount = accounts[payableAccountId] ?: throw BusinessRuleException("Payable account not found")
+        val cashAccount = accounts[cashAccountId] ?: throw BusinessRuleException("Cash/Bank account not found")
+
+        val lines = mutableListOf<JournalEntryLine>()
+
+        // Debit Payable
+        lines.add(
+            JournalEntryLine(
+                accountId = payAccount.id,
+                accountCode = payAccount.code,
+                accountName = payAccount.name,
+                debit = claim.totalReimbursementAmount,
+                credit = BigDecimal.ZERO,
+            ),
+        )
+        // Credit Cash
+        lines.add(
+            JournalEntryLine(
+                accountId = cashAccount.id,
+                accountCode = cashAccount.code,
+                accountName = cashAccount.name,
+                debit = BigDecimal.ZERO,
+                credit = claim.totalReimbursementAmount,
+            ),
+        )
+
+        val je =
+            journalEntryService.createSystemEntry(
+                date = LocalDate.now(),
+                description = "Expense Claim Reimbursement - ${claim.purpose}",
+                organizationId = organizationId,
+                lines = lines,
+                sourceReference = "expense_claim_payment:${claim.id}",
+                createdBy = userId,
+            )
+
+        claim.status = ExpenseClaimStatus.PAID
+        claim.paymentJournalEntryId = je.id
+        val saved = expenseClaimRepository.save(claim)
+        log.info("Reimbursed expense claim {} and posted journal entry {}", claimId, je.id)
+        return mapToResponse(saved)
+    }
+
     private fun mapToResponse(claim: ExpenseClaim): ExpenseClaimResponse =
         ExpenseClaimResponse(
             id = claim.id,
@@ -211,6 +269,7 @@ class ExpenseClaimService(
             totalReimbursementAmount = claim.totalReimbursementAmount,
             workflowInstanceId = claim.workflowInstanceId,
             journalEntryId = claim.journalEntryId,
+            paymentJournalEntryId = claim.paymentJournalEntryId,
             createdBy = claim.createdBy,
             createdAt = claim.createdAt?.toString() ?: "",
             updatedAt = claim.updatedAt?.toString(),

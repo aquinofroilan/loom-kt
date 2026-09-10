@@ -182,4 +182,81 @@ class ExpenseClaimServiceTest {
             expenseClaimService.approveClaim(orgId, claimId, userId, UUID.randomUUID(), UUID.randomUUID())
         }
     }
+
+    @Test
+    fun `reimburseClaim posts journal entry and updates status`() {
+        val claimId = UUID.randomUUID()
+        val claim =
+            ExpenseClaim(
+                id = claimId,
+                organizationId = orgId,
+                employeeId = empId,
+                claimDate = LocalDate.now(),
+                purpose = "Business Trip",
+                status = ExpenseClaimStatus.APPROVED,
+                reimbursementCurrency = "USD",
+                totalReimbursementAmount = BigDecimal("160.00"),
+                createdBy = userId,
+            )
+
+        val payAccountId = UUID.randomUUID()
+        val cashAccountId = UUID.randomUUID()
+
+        val payAccount = Account(id = payAccountId, organizationId = orgId, code = "PAY", name = "Payable", type = AccountType.LIABILITY)
+        val cashAccount = Account(id = cashAccountId, organizationId = orgId, code = "CASH", name = "Bank", type = AccountType.ASSET)
+
+        whenever(expenseClaimRepository.findById(claimId)).thenReturn(Optional.of(claim))
+        whenever(accountRepository.findAllById(any())).thenReturn(listOf(payAccount, cashAccount))
+        whenever(expenseClaimRepository.save(any<ExpenseClaim>())).thenAnswer { it.arguments[0] as ExpenseClaim }
+
+        val je =
+            JournalEntry(
+                id = UUID.randomUUID(),
+                entryNumber = "JE-002",
+                date = LocalDate.now(),
+                description = "",
+                organizationId = orgId,
+                status = JournalEntryStatus.POSTED,
+                source = JournalEntrySource.SYSTEM,
+                sourceReference = "",
+                lines = emptyList(),
+                createdBy = userId,
+            )
+        whenever(journalEntryService.createSystemEntry(any(), any(), any(), any(), any(), any())).thenReturn(je)
+
+        val response = expenseClaimService.reimburseClaim(orgId, claimId, userId, payAccountId, cashAccountId)
+
+        assertEquals(ExpenseClaimStatus.PAID, response.status)
+        assertEquals(je.id, response.paymentJournalEntryId)
+
+        verify(journalEntryService).createSystemEntry(
+            date = any(),
+            description = any(),
+            organizationId = eq(orgId),
+            lines = any(),
+            sourceReference = eq("expense_claim_payment:${claim.id}"),
+            createdBy = eq(userId),
+        )
+    }
+
+    @Test
+    fun `reimburseClaim throws exception if not approved`() {
+        val claimId = UUID.randomUUID()
+        val claim =
+            ExpenseClaim(
+                id = claimId,
+                organizationId = orgId,
+                employeeId = empId,
+                claimDate = LocalDate.now(),
+                purpose = "Business Trip",
+                status = ExpenseClaimStatus.SUBMITTED,
+                reimbursementCurrency = "USD",
+                createdBy = userId,
+            )
+        whenever(expenseClaimRepository.findById(claimId)).thenReturn(Optional.of(claim))
+
+        assertThrows(BusinessRuleException::class.java) {
+            expenseClaimService.reimburseClaim(orgId, claimId, userId, UUID.randomUUID(), UUID.randomUUID())
+        }
+    }
 }
