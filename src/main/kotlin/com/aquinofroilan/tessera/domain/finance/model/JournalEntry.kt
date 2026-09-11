@@ -45,10 +45,17 @@ class JournalEntryLine(
     var accountCode: String,
     @Column(name = "account_name")
     var accountName: String,
+    @Column(name = "cost_center_id", columnDefinition = "uuid")
+    var costCenterId: java.util.UUID? = null,
     var debit: BigDecimal = BigDecimal.ZERO,
     var credit: BigDecimal = BigDecimal.ZERO,
     var description: String? = null,
 )
+
+enum class JournalEntryType {
+    ACTUAL,
+    ENCUMBRANCE,
+}
 
 @Entity
 @Table(name = "journal_entries")
@@ -63,6 +70,8 @@ class JournalEntry(
     var description: String,
     @Column(name = "organization_id", columnDefinition = "uuid")
     var organizationId: java.util.UUID,
+    @Enumerated(EnumType.STRING)
+    var type: JournalEntryType = JournalEntryType.ACTUAL,
     @Enumerated(EnumType.STRING)
     var status: JournalEntryStatus = JournalEntryStatus.DRAFT,
     @Enumerated(EnumType.STRING)

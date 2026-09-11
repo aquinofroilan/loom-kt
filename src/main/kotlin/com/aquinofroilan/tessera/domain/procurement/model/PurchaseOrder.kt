@@ -43,6 +43,10 @@ class PurchaseOrderLine(
     var productSku: String,
     @Column(name = "product_name")
     var productName: String,
+    @Column(name = "account_id", columnDefinition = "uuid")
+    var accountId: java.util.UUID? = null,
+    @Column(name = "cost_center_id", columnDefinition = "uuid")
+    var costCenterId: java.util.UUID? = null,
     var quantity: BigDecimal,
     @Column(name = "unit_cost")
     var unitCost: BigDecimal,

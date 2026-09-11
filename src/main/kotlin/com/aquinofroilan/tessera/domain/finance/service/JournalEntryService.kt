@@ -62,23 +62,26 @@ class JournalEntryService(
         val accounts = accountRepository.findAllById(accountIds).associateBy { it.id }
 
         val lines =
-            request.lines.map { line ->
+            request.lines.mapIndexed { index, lineReq ->
                 val account =
-                    accounts[line.accountId]
-                        ?: throw BusinessRuleException("Account '${line.accountId}' not found")
+                    accounts[lineReq.accountId]
+                        ?: throw BusinessRuleException("Account '${lineReq.accountId}' not found")
                 if (account.organizationId != organizationId) {
-                    throw BusinessRuleException("Account '${line.accountId}' not found")
+                    throw BusinessRuleException("Account '${lineReq.accountId}' not found")
                 }
                 if (!account.isActive) {
                     throw BusinessRuleException("Account '${account.code}' is inactive")
                 }
+
                 JournalEntryLine(
+                    lineNumber = index + 1,
                     accountId = account.id,
                     accountCode = account.code,
                     accountName = account.name,
-                    debit = line.debit,
-                    credit = line.credit,
-                    description = line.description,
+                    costCenterId = lineReq.costCenterId,
+                    debit = lineReq.debit,
+                    credit = lineReq.credit,
+                    description = lineReq.description,
                 )
             }
 
@@ -89,7 +92,9 @@ class JournalEntryService(
                 entryNumber = entryNumber,
                 date = request.date,
                 description = request.description,
+                type = request.type ?: com.aquinofroilan.tessera.domain.finance.model.JournalEntryType.ACTUAL,
                 organizationId = organizationId,
+                status = JournalEntryStatus.DRAFT,
                 lines = lines,
                 createdBy = createdBy,
                 sourceReference = request.sourceReference,

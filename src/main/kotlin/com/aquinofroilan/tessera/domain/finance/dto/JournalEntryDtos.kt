@@ -1,5 +1,6 @@
 package com.aquinofroilan.tessera.domain.finance.dto
 
+import com.aquinofroilan.tessera.domain.finance.model.JournalEntryType
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
@@ -10,6 +11,7 @@ import java.time.LocalDate
 data class JournalEntryLineRequest(
     @field:NotNull(message = "Account ID is required")
     val accountId: java.util.UUID,
+    val costCenterId: java.util.UUID? = null,
     val debit: BigDecimal = BigDecimal.ZERO,
     val credit: BigDecimal = BigDecimal.ZERO,
     val description: String? = null,
@@ -19,6 +21,7 @@ data class CreateJournalEntryRequest(
     val date: LocalDate,
     @field:NotBlank(message = "Description is required")
     val description: String,
+    val type: JournalEntryType? = JournalEntryType.ACTUAL,
     @field:NotEmpty(message = "At least one line item is required")
     @field:Valid
     val lines: List<JournalEntryLineRequest>,
@@ -34,6 +37,7 @@ data class JournalEntryLineResponse(
     val accountId: java.util.UUID,
     val accountCode: String,
     val accountName: String,
+    val costCenterId: java.util.UUID?,
     val debit: BigDecimal,
     val credit: BigDecimal,
     val description: String?,
@@ -44,6 +48,7 @@ data class JournalEntryResponse(
     val entryNumber: String,
     val date: String,
     val description: String,
+    val type: String,
     val organizationId: java.util.UUID,
     val status: String,
     val source: String,
