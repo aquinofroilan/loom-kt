@@ -45,6 +45,8 @@ class JournalEntryLine(
     var accountCode: String,
     @Column(name = "account_name")
     var accountName: String,
+    @Column(name = "cost_center_id", columnDefinition = "uuid")
+    var costCenterId: java.util.UUID? = null,
     var debit: BigDecimal = BigDecimal.ZERO,
     var credit: BigDecimal = BigDecimal.ZERO,
     var description: String? = null,
