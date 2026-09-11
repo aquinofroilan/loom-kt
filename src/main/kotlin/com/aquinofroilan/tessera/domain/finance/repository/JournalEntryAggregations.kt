@@ -16,7 +16,20 @@ interface JournalEntryAggregations {
         startDate: LocalDate?,
         endDate: LocalDate?,
     ): Map<java.util.UUID, AccountTotals>
+
+    fun aggregateBudgetActuals(
+        organizationId: java.util.UUID,
+        startDate: LocalDate,
+        endDate: LocalDate,
+    ): List<BudgetActualAggregation>
 }
+
+data class BudgetActualAggregation(
+    val accountId: java.util.UUID?,
+    val costCenterId: java.util.UUID?,
+    val totalDebits: BigDecimal,
+    val totalCredits: BigDecimal,
+)
 
 open class JournalEntryAggregationsImpl(
     private val jdbc: JdbcTemplate,
@@ -72,5 +85,45 @@ open class JournalEntryAggregationsImpl(
         }, *params.toTypedArray())
 
         return totals
+    }
+
+    override fun aggregateBudgetActuals(
+        organizationId: java.util.UUID,
+        startDate: LocalDate,
+        endDate: LocalDate,
+    ): List<BudgetActualAggregation> {
+        val sql =
+            """
+            SELECT l.account_id,
+                   l.cost_center_id,
+                   COALESCE(SUM(l.debit), 0)  AS total_debits,
+                   COALESCE(SUM(l.credit), 0) AS total_credits
+              FROM journal_entry_lines l
+              JOIN journal_entries e ON e.id = l.journal_entry_id
+             WHERE e.organization_id = ?::uuid
+               AND e.status IN ('POSTED', 'VOIDED')
+               AND e.date >= ?
+               AND e.date <= ?
+             GROUP BY l.account_id, l.cost_center_id
+            """.trimIndent()
+
+        val results = mutableListOf<BudgetActualAggregation>()
+        jdbc.query(sql, { rs ->
+            val accountIdStr = rs.getString("account_id")
+            val costCenterIdStr = rs.getString("cost_center_id")
+            val debits = rs.getBigDecimal("total_debits") ?: BigDecimal.ZERO
+            val credits = rs.getBigDecimal("total_credits") ?: BigDecimal.ZERO
+
+            results.add(
+                BudgetActualAggregation(
+                    accountId = accountIdStr?.let { java.util.UUID.fromString(it) },
+                    costCenterId = costCenterIdStr?.let { java.util.UUID.fromString(it) },
+                    totalDebits = debits,
+                    totalCredits = credits,
+                ),
+            )
+        }, organizationId, startDate, endDate)
+
+        return results
     }
 }

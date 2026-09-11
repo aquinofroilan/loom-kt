@@ -8,6 +8,8 @@ import java.util.Optional
 
 @Repository
 interface AccountRepository : JpaRepository<Account, java.util.UUID> {
+    fun findByOrganizationId(organizationId: java.util.UUID): List<Account>
+
     fun findByOrganizationIdAndIsActive(
         organizationId: java.util.UUID,
         isActive: Boolean,
