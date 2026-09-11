@@ -64,13 +64,17 @@ class BudgetVsActualService(
             // Track which actuals we've matched to a budget line
             val matchedActualKeys = mutableSetOf<Pair<UUID?, UUID?>>()
 
-            // 1. Process budget lines and find actuals
+            // 1. Process budget lines and find actuals/encumbrances
             for (line in linesForPeriod) {
                 val key = Pair(line.accountId, line.costCenterId)
                 val actual = actualsMap[key]
                 val netActual =
                     actual?.let {
-                        it.totalDebits - it.totalCredits // Depending on account type, usually expense is Debit
+                        it.actualDebits - it.actualCredits
+                    } ?: BigDecimal.ZERO
+                val netEncumbered =
+                    actual?.let {
+                        it.encumberedDebits - it.encumberedCredits
                     } ?: BigDecimal.ZERO
 
                 matchedActualKeys.add(key)
@@ -78,10 +82,10 @@ class BudgetVsActualService(
                 val account = line.accountId?.let { allAccounts[it] }
                 val costCenter = line.costCenterId?.let { allCostCenters[it] }
 
-                val remainingAmount = line.amount - netActual
+                val remainingAmount = line.amount - netActual - netEncumbered
                 val variancePercentage =
                     if (line.amount.compareTo(BigDecimal.ZERO) != 0) {
-                        ((netActual - line.amount) / line.amount) * BigDecimal("100.00")
+                        ((netActual + netEncumbered - line.amount) / line.amount) * BigDecimal("100.00")
                     } else {
                         null
                     }
@@ -97,6 +101,7 @@ class BudgetVsActualService(
                         fiscalPeriodId = period.id,
                         fiscalPeriodName = period.name,
                         budgetedAmount = line.amount,
+                        encumberedAmount = netEncumbered,
                         actualAmount = netActual,
                         remainingAmount = remainingAmount,
                         variancePercentage = variancePercentage?.setScale(2, RoundingMode.HALF_UP),
@@ -109,8 +114,9 @@ class BudgetVsActualService(
                 if (key in matchedActualKeys) continue
 
                 val (accountId, costCenterId) = key
-                val netActual = actual.totalDebits - actual.totalCredits
-                if (netActual.compareTo(BigDecimal.ZERO) == 0) continue
+                val netActual = actual.actualDebits - actual.actualCredits
+                val netEncumbered = actual.encumberedDebits - actual.encumberedCredits
+                if (netActual.compareTo(BigDecimal.ZERO) == 0 && netEncumbered.compareTo(BigDecimal.ZERO) == 0) continue
 
                 val account = accountId?.let { allAccounts[it] }
                 val costCenter = costCenterId?.let { allCostCenters[it] }
@@ -128,8 +134,9 @@ class BudgetVsActualService(
                         fiscalPeriodId = period.id,
                         fiscalPeriodName = period.name,
                         budgetedAmount = BigDecimal.ZERO,
+                        encumberedAmount = netEncumbered,
                         actualAmount = netActual,
-                        remainingAmount = BigDecimal.ZERO - netActual,
+                        remainingAmount = BigDecimal.ZERO - netActual - netEncumbered,
                         variancePercentage = variancePercentage,
                     ),
                 )

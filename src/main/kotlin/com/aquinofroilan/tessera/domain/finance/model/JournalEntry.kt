@@ -52,6 +52,11 @@ class JournalEntryLine(
     var description: String? = null,
 )
 
+enum class JournalEntryType {
+    ACTUAL,
+    ENCUMBRANCE,
+}
+
 @Entity
 @Table(name = "journal_entries")
 @EntityListeners(AuditingEntityListener::class)
@@ -65,6 +70,8 @@ class JournalEntry(
     var description: String,
     @Column(name = "organization_id", columnDefinition = "uuid")
     var organizationId: java.util.UUID,
+    @Enumerated(EnumType.STRING)
+    var type: JournalEntryType = JournalEntryType.ACTUAL,
     @Enumerated(EnumType.STRING)
     var status: JournalEntryStatus = JournalEntryStatus.DRAFT,
     @Enumerated(EnumType.STRING)

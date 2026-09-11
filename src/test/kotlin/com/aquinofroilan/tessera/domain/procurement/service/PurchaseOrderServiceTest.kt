@@ -51,6 +51,8 @@ class PurchaseOrderServiceTest {
     private lateinit var stockMovementService: StockMovementService
     private lateinit var accountRepository: AccountRepository
     private lateinit var billService: BillService
+    private lateinit var journalEntryService: com.aquinofroilan.tessera.domain.finance.service.JournalEntryService
+
     private lateinit var service: PurchaseOrderService
 
     private val orgId = java.util.UUID.fromString("e5628ca4-87a8-3e6f-8ae2-20213cc7ef92")
@@ -65,8 +67,29 @@ class PurchaseOrderServiceTest {
         stockMovementService = mock(StockMovementService::class.java)
         accountRepository = mock(AccountRepository::class.java)
         billService = mock(BillService::class.java)
+        journalEntryService = mock(com.aquinofroilan.tessera.domain.finance.service.JournalEntryService::class.java)
         whenever(repository.countByOrganizationId(orgId)).thenReturn(0L)
         whenever(repository.save(any<PurchaseOrder>())).thenAnswer { it.arguments[0] }
+        whenever(accountRepository.findByOrganizationIdAndCode(any(), any())).thenReturn(
+            Optional.of(
+                Account(
+                    code = "2150",
+                    name = "Inventory Clearing",
+                    type = com.aquinofroilan.tessera.domain.finance.model.AccountType.LIABILITY,
+                    organizationId = orgId,
+                ),
+            ),
+        )
+        val dummyJe =
+            com.aquinofroilan.tessera.domain.finance.model.JournalEntry(
+                entryNumber = "JE-0001",
+                date = LocalDate.now(),
+                description = "Dummy",
+                organizationId = orgId,
+                lines = emptyList(),
+                createdBy = userId,
+            )
+        whenever(journalEntryService.createJournalEntry(any(), any(), any())).thenReturn(dummyJe)
         whenever(
             vendorService.getVendor(java.util.UUID.fromString("718fa2b3-0eb7-3a9c-987f-a0cbe216ac6a"), orgId),
         ).thenReturn(Vendor(id = java.util.UUID.fromString("718fa2b3-0eb7-3a9c-987f-a0cbe216ac6a"), name = "Acme", organizationId = orgId))
@@ -98,6 +121,7 @@ class PurchaseOrderServiceTest {
                 stockMovementService,
                 accountRepository,
                 billService,
+                journalEntryService,
             )
     }
 
