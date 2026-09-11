@@ -22,6 +22,7 @@ class BudgetVsActualService(
     private val journalEntryRepository: JournalEntryRepository,
     private val accountRepository: AccountRepository,
     private val costCenterRepository: CostCenterRepository,
+    private val forecastRepository: com.aquinofroilan.tessera.domain.finance.repository.ForecastRepository,
 ) {
     @Transactional(readOnly = true)
     fun generateReport(
@@ -39,6 +40,14 @@ class BudgetVsActualService(
 
         val fiscalYear = fiscalYearService.getFiscalYear(request.fiscalYearId, organizationId)
 
+        val forecast =
+            request.forecastId?.let {
+                forecastRepository.findById(it).orElseThrow { ResourceNotFoundException("Forecast not found: ${request.forecastId}") }
+            }
+        if (forecast != null && forecast.organizationId != organizationId) {
+            throw ResourceNotFoundException("Forecast not found: ${request.forecastId}")
+        }
+
         val allAccounts = accountRepository.findByOrganizationId(organizationId).associateBy { it.id }
         val allCostCenters = costCenterRepository.findByOrganizationId(organizationId).associateBy { it.id }
 
@@ -47,6 +56,7 @@ class BudgetVsActualService(
         val reportLines = mutableListOf<BudgetVsActualLineResponse>()
 
         val budgetLinesByPeriod = budget.lines.groupBy { it.fiscalPeriodId }
+        val forecastLinesByPeriod = forecast?.lines?.groupBy { it.fiscalPeriodId } ?: emptyMap()
 
         for (period in fiscalYear.periods) {
             val actuals =
@@ -60,11 +70,13 @@ class BudgetVsActualService(
             val actualsMap = actuals.associateBy { Pair(it.accountId, it.costCenterId) }
 
             val linesForPeriod = budgetLinesByPeriod[period.id] ?: emptyList()
+            val forecastLinesForPeriod = forecastLinesByPeriod[period.id] ?: emptyList()
+            val forecastMap = forecastLinesForPeriod.associateBy { Pair(it.accountId, it.costCenterId) }
 
-            // Track which actuals we've matched to a budget line
-            val matchedActualKeys = mutableSetOf<Pair<UUID?, UUID?>>()
+            // Track which actuals and forecasts we've matched
+            val matchedKeys = mutableSetOf<Pair<UUID?, UUID?>>()
 
-            // 1. Process budget lines and find actuals/encumbrances
+            // 1. Process budget lines and find actuals/encumbrances/forecasts
             for (line in linesForPeriod) {
                 val key = Pair(line.accountId, line.costCenterId)
                 val actual = actualsMap[key]
@@ -77,7 +89,10 @@ class BudgetVsActualService(
                         it.encumberedDebits - it.encumberedCredits
                     } ?: BigDecimal.ZERO
 
-                matchedActualKeys.add(key)
+                val forecastLine = forecastMap[key]
+                val forecastAmount = forecastLine?.amount
+
+                matchedKeys.add(key)
 
                 val account = line.accountId?.let { allAccounts[it] }
                 val costCenter = line.costCenterId?.let { allCostCenters[it] }
@@ -103,20 +118,32 @@ class BudgetVsActualService(
                         budgetedAmount = line.amount,
                         encumberedAmount = netEncumbered,
                         actualAmount = netActual,
+                        forecastAmount = forecastAmount,
                         remainingAmount = remainingAmount,
                         variancePercentage = variancePercentage?.setScale(2, RoundingMode.HALF_UP),
                     ),
                 )
             }
 
-            // 2. Process actuals that have NO budget line
-            for ((key, actual) in actualsMap) {
-                if (key in matchedActualKeys) continue
+            // 2. Process actuals or forecasts that have NO budget line
+            val allOtherKeys = actualsMap.keys + forecastMap.keys - matchedKeys
+
+            for (key in allOtherKeys) {
+                val actual = actualsMap[key]
+                val netActual = actual?.let { it.actualDebits - it.actualCredits } ?: BigDecimal.ZERO
+                val netEncumbered = actual?.let { it.encumberedDebits - it.encumberedCredits } ?: BigDecimal.ZERO
+
+                val forecastLine = forecastMap[key]
+                val forecastAmount = forecastLine?.amount
+
+                if (netActual.compareTo(BigDecimal.ZERO) == 0 &&
+                    netEncumbered.compareTo(BigDecimal.ZERO) == 0 &&
+                    (forecastAmount == null || forecastAmount.compareTo(BigDecimal.ZERO) == 0)
+                ) {
+                    continue
+                }
 
                 val (accountId, costCenterId) = key
-                val netActual = actual.actualDebits - actual.actualCredits
-                val netEncumbered = actual.encumberedDebits - actual.encumberedCredits
-                if (netActual.compareTo(BigDecimal.ZERO) == 0 && netEncumbered.compareTo(BigDecimal.ZERO) == 0) continue
 
                 val account = accountId?.let { allAccounts[it] }
                 val costCenter = costCenterId?.let { allCostCenters[it] }
@@ -136,6 +163,7 @@ class BudgetVsActualService(
                         budgetedAmount = BigDecimal.ZERO,
                         encumberedAmount = netEncumbered,
                         actualAmount = netActual,
+                        forecastAmount = forecastAmount,
                         remainingAmount = BigDecimal.ZERO - netActual - netEncumbered,
                         variancePercentage = variancePercentage,
                     ),
@@ -148,7 +176,12 @@ class BudgetVsActualService(
             fiscalYearId = fiscalYear.id,
             budgetId = budget.id,
             budgetName = budget.name,
-            reportDate = LocalDate.now().toString(),
+            forecastId = forecast?.id,
+            forecastName = forecast?.name,
+            reportDate =
+                java.time.LocalDate
+                    .now()
+                    .toString(),
             lines = reportLines,
         )
     }

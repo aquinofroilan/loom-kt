@@ -13,6 +13,7 @@ import com.aquinofroilan.tessera.domain.finance.repository.CostCenterRepository
 import com.aquinofroilan.tessera.domain.finance.repository.JournalEntryRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
@@ -28,15 +29,22 @@ class BudgetVsActualServiceTest {
     private val journalEntryRepository: JournalEntryRepository = mock()
     private val accountRepository: AccountRepository = mock()
     private val costCenterRepository: CostCenterRepository = mock()
+    private val forecastRepository: com.aquinofroilan.tessera.domain.finance.repository.ForecastRepository = mock()
 
-    private val service =
-        BudgetVsActualService(
-            budgetRepository,
-            fiscalYearService,
-            journalEntryRepository,
-            accountRepository,
-            costCenterRepository,
-        )
+    private lateinit var service: BudgetVsActualService
+
+    @BeforeEach
+    fun setup() {
+        service =
+            BudgetVsActualService(
+                budgetRepository,
+                fiscalYearService,
+                journalEntryRepository,
+                accountRepository,
+                costCenterRepository,
+                forecastRepository,
+            )
+    }
 
     @Test
     fun `should generate budget vs actual report`() {
