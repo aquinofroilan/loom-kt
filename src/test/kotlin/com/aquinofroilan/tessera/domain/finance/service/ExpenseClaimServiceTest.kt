@@ -12,6 +12,7 @@ import com.aquinofroilan.tessera.domain.finance.model.JournalEntry
 import com.aquinofroilan.tessera.domain.finance.model.JournalEntrySource
 import com.aquinofroilan.tessera.domain.finance.model.JournalEntryStatus
 import com.aquinofroilan.tessera.domain.finance.repository.AccountRepository
+import com.aquinofroilan.tessera.domain.finance.repository.CashAdvanceRepository
 import com.aquinofroilan.tessera.domain.finance.repository.ExpenseCategoryRepository
 import com.aquinofroilan.tessera.domain.finance.repository.ExpenseClaimRepository
 import com.aquinofroilan.tessera.exception.BusinessRuleException
@@ -34,6 +35,7 @@ class ExpenseClaimServiceTest {
     private val accountRepository: AccountRepository = mock()
     private val journalEntryService: JournalEntryService = mock()
     private val expenseCategoryRepository: ExpenseCategoryRepository = mock()
+    private val cashAdvanceRepository: CashAdvanceRepository = mock()
 
     private lateinit var expenseClaimService: ExpenseClaimService
 
@@ -49,6 +51,7 @@ class ExpenseClaimServiceTest {
                 accountRepository,
                 journalEntryService,
                 expenseCategoryRepository,
+                cashAdvanceRepository,
             )
     }
 

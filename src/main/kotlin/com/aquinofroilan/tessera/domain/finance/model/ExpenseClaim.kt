@@ -46,6 +46,10 @@ data class ExpenseClaim(
     var journalEntryId: UUID? = null,
     @Column(name = "payment_journal_entry_id", columnDefinition = "uuid")
     var paymentJournalEntryId: UUID? = null,
+    @Column(name = "cash_advance_id", columnDefinition = "uuid")
+    var cashAdvanceId: UUID? = null,
+    @Column(name = "applied_advance_amount")
+    var appliedAdvanceAmount: BigDecimal = BigDecimal.ZERO,
     @Column(name = "created_by", columnDefinition = "uuid")
     var createdBy: UUID,
     @CreatedDate

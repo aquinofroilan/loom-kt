@@ -18,10 +18,16 @@ data class ExpenseClaimLine(
     var lineNumber: Int,
     @Column(name = "expense_date")
     var expenseDate: LocalDate,
+    @Column(name = "line_type")
+    var lineType: String = "STANDARD",
     var category: String,
     @Column(name = "category_id", columnDefinition = "uuid")
     var categoryId: UUID? = null,
     var description: String? = null,
+    @Column(name = "quantity")
+    var quantity: BigDecimal? = null,
+    @Column(name = "unit_price")
+    var unitPrice: BigDecimal? = null,
     @Column(name = "original_currency")
     var originalCurrency: String,
     @Column(name = "original_amount")

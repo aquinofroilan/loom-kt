@@ -14,16 +14,18 @@ import java.util.UUID
 data class ExpenseClaimLineRequest(
     @field:NotNull(message = "Expense date is required")
     val expenseDate: LocalDate?,
+    val lineType: String = "STANDARD",
     @field:NotBlank(message = "Category is required")
     @field:Size(max = 100)
     val category: String?,
     val categoryId: UUID? = null,
     @field:Size(max = 1000)
     val description: String? = null,
+    val quantity: BigDecimal? = null,
+    val unitPrice: BigDecimal? = null,
     @field:NotBlank(message = "Original currency is required")
     @field:Size(min = 3, max = 3)
     val originalCurrency: String?,
-    @field:NotNull(message = "Original amount is required")
     @field:Positive(message = "Amount must be positive")
     val originalAmount: BigDecimal?,
     val exchangeRate: BigDecimal = BigDecimal.ONE,
@@ -52,9 +54,12 @@ data class ExpenseClaimLineResponse(
     val id: UUID,
     val lineNumber: Int,
     val expenseDate: String,
+    val lineType: String,
     val category: String,
     val categoryId: UUID?,
     val description: String?,
+    val quantity: BigDecimal?,
+    val unitPrice: BigDecimal?,
     val originalCurrency: String,
     val originalAmount: BigDecimal,
     val exchangeRate: BigDecimal,
@@ -75,6 +80,8 @@ data class ExpenseClaimResponse(
     val workflowInstanceId: UUID?,
     val journalEntryId: UUID?,
     val paymentJournalEntryId: UUID?,
+    val cashAdvanceId: UUID?,
+    val appliedAdvanceAmount: BigDecimal,
     val createdBy: UUID,
     val createdAt: String,
     val updatedAt: String?,
