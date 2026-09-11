@@ -14,4 +14,12 @@ interface UserRepository : JpaRepository<User, java.util.UUID> {
     fun existsByUsername(username: String): Boolean
 
     fun existsByEmail(email: String): Boolean
+
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT DISTINCT u FROM User u JOIN u.roleAssignments r WHERE r.organizationId = :organizationId AND r.role IN :roles",
+    )
+    fun findByOrganizationIdAndRolesIn(
+        @org.springframework.data.repository.query.Param("organizationId") organizationId: java.util.UUID,
+        @org.springframework.data.repository.query.Param("roles") roles: List<String>,
+    ): List<User>
 }
