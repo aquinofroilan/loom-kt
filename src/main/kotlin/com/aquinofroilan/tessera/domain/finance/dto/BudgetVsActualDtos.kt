@@ -18,6 +18,7 @@ data class BudgetVsActualLineResponse(
     val fiscalPeriodId: UUID,
     val fiscalPeriodName: String,
     val budgetedAmount: BigDecimal,
+    val encumberedAmount: BigDecimal,
     val actualAmount: BigDecimal,
     val remainingAmount: BigDecimal,
     val variancePercentage: BigDecimal?,

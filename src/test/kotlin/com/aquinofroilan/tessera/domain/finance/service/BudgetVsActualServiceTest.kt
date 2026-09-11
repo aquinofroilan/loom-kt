@@ -94,8 +94,10 @@ class BudgetVsActualServiceTest {
                 BudgetActualAggregation(
                     accountId = accId,
                     costCenterId = null,
-                    totalDebits = BigDecimal("6000.00"),
-                    totalCredits = BigDecimal("1000.00"), // net actual is 5000.00
+                    actualDebits = BigDecimal("6000.00"),
+                    actualCredits = BigDecimal("1000.00"), // net actual is 5000.00
+                    encumberedDebits = BigDecimal("2000.00"),
+                    encumberedCredits = BigDecimal.ZERO, // net encumbered is 2000.00
                 ),
             )
         whenever(journalEntryRepository.aggregateBudgetActuals(any(), any(), any())).thenReturn(aggregations)
@@ -113,8 +115,9 @@ class BudgetVsActualServiceTest {
         val line = res.lines[0]
         assertEquals(accId, line.accountId)
         assertEquals(BigDecimal("10000.00"), line.budgetedAmount)
+        assertEquals(BigDecimal("2000.00"), line.encumberedAmount)
         assertEquals(BigDecimal("5000.00"), line.actualAmount)
-        assertEquals(BigDecimal("5000.00"), line.remainingAmount)
-        assertEquals(BigDecimal("-50.00"), line.variancePercentage)
+        assertEquals(BigDecimal("3000.00"), line.remainingAmount)
+        assertEquals(BigDecimal("-30.00"), line.variancePercentage)
     }
 }

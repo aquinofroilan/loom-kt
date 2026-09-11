@@ -41,6 +41,7 @@ class PurchaseOrderService(
     private val stockMovementService: StockMovementService,
     private val accountRepository: AccountRepository,
     private val billService: BillService,
+    private val journalEntryService: com.aquinofroilan.tessera.domain.finance.service.JournalEntryService,
 ) {
     @Transactional
     fun createPurchaseOrder(
@@ -76,6 +77,8 @@ class PurchaseOrderService(
                     productId = product.id,
                     productSku = product.sku,
                     productName = product.name,
+                    accountId = lineReq.accountId ?: vendor.defaultExpenseAccountId,
+                    costCenterId = lineReq.costCenterId,
                     quantity = quantity,
                     unitCost = unitCost,
                     lineTotal = quantity.multiply(unitCost),
@@ -142,6 +145,43 @@ class PurchaseOrderService(
         po.status = PurchaseOrderStatus.APPROVED
         po.approvedAt = LocalDateTime.now(ZoneOffset.UTC)
         po.approvedBy = approvedBy
+
+        // Encumber budget
+        val clearingAccountId =
+            accountRepository
+                .findByOrganizationIdAndCode(organizationId, "2150")
+                .map { it.id }
+                .orElseThrow { BusinessRuleException("Clearing account 2150 not found for encumbrance") }
+
+        val jeLines =
+            po.lines.flatMap { line ->
+                val expenseAccount = line.accountId ?: billExpenseAccountId(po, organizationId)
+                listOf(
+                    com.aquinofroilan.tessera.domain.finance.dto.JournalEntryLineRequest(
+                        accountId = expenseAccount,
+                        costCenterId = line.costCenterId,
+                        debit = line.lineTotal,
+                        description = "Encumbrance for PO-${po.poNumber} line ${line.lineNumber}",
+                    ),
+                    com.aquinofroilan.tessera.domain.finance.dto.JournalEntryLineRequest(
+                        accountId = clearingAccountId,
+                        credit = line.lineTotal,
+                        description = "Encumbrance reserve for PO-${po.poNumber} line ${line.lineNumber}",
+                    ),
+                )
+            }
+
+        val request =
+            com.aquinofroilan.tessera.domain.finance.dto.CreateJournalEntryRequest(
+                date = LocalDate.now(ZoneOffset.UTC),
+                description = "Encumbrance for PO-${po.poNumber}",
+                type = com.aquinofroilan.tessera.domain.finance.model.JournalEntryType.ENCUMBRANCE,
+                lines = jeLines,
+                sourceReference = "PO-ENC-${po.id}",
+            )
+        val je = journalEntryService.createJournalEntry(request, organizationId, approvedBy)
+        journalEntryService.postJournalEntry(je.id, organizationId)
+
         return purchaseOrderRepository.save(po)
     }
 
@@ -194,10 +234,52 @@ class PurchaseOrderService(
                 line.apply { receivedQuantity = line.receivedQuantity.add(qty) }
             }
 
-        val fullyReceived = updatedLines.all { it.receivedQuantity >= it.quantity }
+        val allReceived = updatedLines.all { it.receivedQuantity >= it.quantity }
         po.lines = updatedLines
-        po.status = if (fullyReceived) PurchaseOrderStatus.RECEIVED else PurchaseOrderStatus.PARTIALLY_RECEIVED
-        po.receivedAt = if (fullyReceived) LocalDateTime.now(ZoneOffset.UTC) else po.receivedAt
+        po.status = if (allReceived) PurchaseOrderStatus.RECEIVED else PurchaseOrderStatus.PARTIALLY_RECEIVED
+        po.receivedAt = LocalDateTime.now(ZoneOffset.UTC)
+
+        // Reverse encumbrance for received amount
+        val clearingAccountId =
+            accountRepository
+                .findByOrganizationIdAndCode(organizationId, "2150")
+                .map { it.id }
+                .orElseThrow { BusinessRuleException("Clearing account 2150 not found for encumbrance") }
+
+        val jeLines =
+            updatedLines
+                .mapNotNull { line ->
+                    val qty = requested[line.id] ?: return@mapNotNull null
+                    val encumbranceReliefAmount = qty.multiply(line.unitCost)
+                    val expenseAccount = line.accountId ?: billExpenseAccountId(po, organizationId)
+                    listOf(
+                        com.aquinofroilan.tessera.domain.finance.dto.JournalEntryLineRequest(
+                            accountId = clearingAccountId,
+                            debit = encumbranceReliefAmount,
+                            description = "Relieve encumbrance reserve for PO-${po.poNumber} line ${line.lineNumber}",
+                        ),
+                        com.aquinofroilan.tessera.domain.finance.dto.JournalEntryLineRequest(
+                            accountId = expenseAccount,
+                            costCenterId = line.costCenterId,
+                            credit = encumbranceReliefAmount,
+                            description = "Relieve encumbrance for PO-${po.poNumber} line ${line.lineNumber}",
+                        ),
+                    )
+                }.flatten()
+
+        if (jeLines.isNotEmpty()) {
+            val requestEncumbrance =
+                com.aquinofroilan.tessera.domain.finance.dto.CreateJournalEntryRequest(
+                    date = LocalDate.now(ZoneOffset.UTC),
+                    description = "Relieve encumbrance for PO-${po.poNumber} receipt",
+                    type = com.aquinofroilan.tessera.domain.finance.model.JournalEntryType.ENCUMBRANCE,
+                    lines = jeLines,
+                    sourceReference = "PO-ENC-RELIEF-${po.id}-${po.receivedAt?.toEpochSecond(ZoneOffset.UTC)}",
+                )
+            val je = journalEntryService.createJournalEntry(requestEncumbrance, organizationId, userId)
+            journalEntryService.postJournalEntry(je.id, organizationId)
+        }
+
         return purchaseOrderRepository.save(po)
     }
 

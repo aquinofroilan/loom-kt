@@ -27,8 +27,10 @@ interface JournalEntryAggregations {
 data class BudgetActualAggregation(
     val accountId: java.util.UUID?,
     val costCenterId: java.util.UUID?,
-    val totalDebits: BigDecimal,
-    val totalCredits: BigDecimal,
+    val actualDebits: BigDecimal,
+    val actualCredits: BigDecimal,
+    val encumberedDebits: BigDecimal,
+    val encumberedCredits: BigDecimal,
 )
 
 open class JournalEntryAggregationsImpl(
@@ -58,6 +60,7 @@ open class JournalEntryAggregationsImpl(
                       JOIN journal_entries e ON e.id = l.journal_entry_id
                      WHERE e.organization_id = ?::uuid
                        AND e.status IN ('POSTED', 'VOIDED')
+                       AND e.type = 'ACTUAL'
                     """.trimIndent(),
                 )
                 if (startDate != null) {
@@ -96,8 +99,10 @@ open class JournalEntryAggregationsImpl(
             """
             SELECT l.account_id,
                    l.cost_center_id,
-                   COALESCE(SUM(l.debit), 0)  AS total_debits,
-                   COALESCE(SUM(l.credit), 0) AS total_credits
+                   COALESCE(SUM(CASE WHEN e.type = 'ACTUAL' THEN l.debit ELSE 0 END), 0)  AS actual_debits,
+                   COALESCE(SUM(CASE WHEN e.type = 'ACTUAL' THEN l.credit ELSE 0 END), 0) AS actual_credits,
+                   COALESCE(SUM(CASE WHEN e.type = 'ENCUMBRANCE' THEN l.debit ELSE 0 END), 0)  AS encumbered_debits,
+                   COALESCE(SUM(CASE WHEN e.type = 'ENCUMBRANCE' THEN l.credit ELSE 0 END), 0) AS encumbered_credits
               FROM journal_entry_lines l
               JOIN journal_entries e ON e.id = l.journal_entry_id
              WHERE e.organization_id = ?::uuid
@@ -111,15 +116,15 @@ open class JournalEntryAggregationsImpl(
         jdbc.query(sql, { rs ->
             val accountIdStr = rs.getString("account_id")
             val costCenterIdStr = rs.getString("cost_center_id")
-            val debits = rs.getBigDecimal("total_debits") ?: BigDecimal.ZERO
-            val credits = rs.getBigDecimal("total_credits") ?: BigDecimal.ZERO
 
             results.add(
                 BudgetActualAggregation(
                     accountId = accountIdStr?.let { java.util.UUID.fromString(it) },
                     costCenterId = costCenterIdStr?.let { java.util.UUID.fromString(it) },
-                    totalDebits = debits,
-                    totalCredits = credits,
+                    actualDebits = rs.getBigDecimal("actual_debits") ?: BigDecimal.ZERO,
+                    actualCredits = rs.getBigDecimal("actual_credits") ?: BigDecimal.ZERO,
+                    encumberedDebits = rs.getBigDecimal("encumbered_debits") ?: BigDecimal.ZERO,
+                    encumberedCredits = rs.getBigDecimal("encumbered_credits") ?: BigDecimal.ZERO,
                 ),
             )
         }, organizationId, startDate, endDate)

@@ -12,6 +12,8 @@ import java.time.LocalDate
 data class CreatePurchaseOrderLineRequest(
     @field:NotNull(message = "Product ID is required")
     val productId: java.util.UUID,
+    val accountId: java.util.UUID? = null,
+    val costCenterId: java.util.UUID? = null,
     @field:NotNull(message = "Quantity is required")
     @field:Positive(message = "Quantity must be positive")
     val quantity: BigDecimal?,
@@ -109,6 +111,8 @@ data class PurchaseOrderLineResponse(
     val productId: java.util.UUID,
     val productSku: String,
     val productName: String,
+    val accountId: java.util.UUID?,
+    val costCenterId: java.util.UUID?,
     val quantity: BigDecimal,
     val unitCost: BigDecimal,
     val lineTotal: BigDecimal,
@@ -158,6 +162,8 @@ data class PurchaseOrderResponse(
                             productId = line.productId,
                             productSku = line.productSku,
                             productName = line.productName,
+                            accountId = line.accountId,
+                            costCenterId = line.costCenterId,
                             quantity = line.quantity,
                             unitCost = line.unitCost,
                             lineTotal = line.lineTotal,
