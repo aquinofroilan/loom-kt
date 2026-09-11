@@ -9,4 +9,10 @@ interface StockOnHandRepository :
     JpaRepository<StockOnHand, java.util.UUID>,
     StockOnHandQueries {
     fun findByOrganizationId(organizationId: java.util.UUID): List<StockOnHand>
+
+    fun findByOrganizationIdAndProductIdAndWarehouseId(
+        organizationId: java.util.UUID,
+        productId: java.util.UUID,
+        warehouseId: java.util.UUID,
+    ): java.util.Optional<StockOnHand>
 }
