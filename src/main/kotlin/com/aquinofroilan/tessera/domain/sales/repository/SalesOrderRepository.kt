@@ -26,4 +26,12 @@ interface SalesOrderRepository : JpaRepository<SalesOrder, java.util.UUID> {
     ): List<SalesOrder>
 
     fun countByOrganizationId(organizationId: java.util.UUID): Long
+
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT COALESCE(SUM(so.totalAmount), 0) FROM SalesOrder so WHERE so.organizationId = :organizationId AND so.orderDate >= :startDate",
+    )
+    fun sumSalesVolumeSince(
+        @org.springframework.data.repository.query.Param("organizationId") organizationId: java.util.UUID,
+        @org.springframework.data.repository.query.Param("startDate") startDate: java.time.LocalDate,
+    ): java.math.BigDecimal
 }
