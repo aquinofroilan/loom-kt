@@ -6,6 +6,7 @@ import java.util.UUID
 data class BudgetVsActualReportRequest(
     val fiscalYearId: UUID,
     val budgetId: UUID,
+    val forecastId: UUID? = null,
 )
 
 data class BudgetVsActualLineResponse(
@@ -20,6 +21,7 @@ data class BudgetVsActualLineResponse(
     val budgetedAmount: BigDecimal,
     val encumberedAmount: BigDecimal,
     val actualAmount: BigDecimal,
+    val forecastAmount: BigDecimal?,
     val remainingAmount: BigDecimal,
     val variancePercentage: BigDecimal?,
 )
@@ -29,6 +31,8 @@ data class BudgetVsActualReportResponse(
     val fiscalYearId: UUID,
     val budgetId: UUID,
     val budgetName: String,
+    val forecastId: UUID?,
+    val forecastName: String?,
     val reportDate: String,
     val lines: List<BudgetVsActualLineResponse>,
 )
