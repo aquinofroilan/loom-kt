@@ -44,6 +44,8 @@ data class ExpenseClaim(
     var workflowInstanceId: UUID? = null,
     @Column(name = "journal_entry_id", columnDefinition = "uuid")
     var journalEntryId: UUID? = null,
+    @Column(name = "payment_journal_entry_id", columnDefinition = "uuid")
+    var paymentJournalEntryId: UUID? = null,
     @Column(name = "created_by", columnDefinition = "uuid")
     var createdBy: UUID,
     @CreatedDate

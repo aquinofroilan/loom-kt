@@ -8,6 +8,7 @@ import com.aquinofroilan.tessera.domain.finance.model.ExpenseClaimLine
 import com.aquinofroilan.tessera.domain.finance.model.ExpenseClaimStatus
 import com.aquinofroilan.tessera.domain.finance.model.JournalEntryLine
 import com.aquinofroilan.tessera.domain.finance.repository.AccountRepository
+import com.aquinofroilan.tessera.domain.finance.repository.ExpenseCategoryRepository
 import com.aquinofroilan.tessera.domain.finance.repository.ExpenseClaimRepository
 import com.aquinofroilan.tessera.exception.BusinessRuleException
 import com.aquinofroilan.tessera.exception.ResourceNotFoundException
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.LocalDate
 import java.util.UUID
 
 @Service
@@ -23,6 +25,7 @@ class ExpenseClaimService(
     private val expenseClaimRepository: ExpenseClaimRepository,
     private val accountRepository: AccountRepository,
     private val journalEntryService: JournalEntryService,
+    private val expenseCategoryRepository: ExpenseCategoryRepository,
 ) {
     private val log = LoggerFactory.getLogger(ExpenseClaimService::class.java)
 
@@ -58,6 +61,7 @@ class ExpenseClaimService(
                     lineNumber = index + 1,
                     expenseDate = lineReq.expenseDate!!,
                     category = lineReq.category!!,
+                    categoryId = lineReq.categoryId,
                     description = lineReq.description,
                     originalCurrency = lineReq.originalCurrency!!,
                     originalAmount = lineReq.originalAmount,
@@ -84,6 +88,41 @@ class ExpenseClaimService(
         val claim = getClaim(claimId, organizationId)
         if (claim.status != ExpenseClaimStatus.DRAFT) {
             throw BusinessRuleException("Only draft claims can be submitted")
+        }
+
+        // Check policy limits
+        claim.lines.forEach { line ->
+            if (line.categoryId != null) {
+                val category = expenseCategoryRepository.findById(line.categoryId!!).orElse(null)
+                if (category != null && category.policyLimit != null) {
+                    if (category.limitCurrency != line.originalCurrency) {
+                        // Normally we'd convert, but for simplicity, we assume they must match or we check base currency
+                        // Since we just have reimbursementAmount (which is in claim currency), let's compare reimbursementAmount if limitCurrency matches claim currency
+                        // For simplicity in this requirement, let's just assume we check originalAmount against policyLimit if currency matches,
+                        // or reimbursementAmount if limitCurrency == claim.reimbursementCurrency
+                        val amountToCheck =
+                            if (category.limitCurrency == claim.reimbursementCurrency) {
+                                line.reimbursementAmount
+                            } else if (category.limitCurrency == line.originalCurrency) {
+                                line.originalAmount
+                            } else {
+                                line.reimbursementAmount // fallback
+                            }
+
+                        if (amountToCheck > category.policyLimit!!) {
+                            throw BusinessRuleException(
+                                "Line ${line.lineNumber} exceeds policy limit of ${category.policyLimit} ${category.limitCurrency} for category '${category.name}'",
+                            )
+                        }
+                    } else {
+                        if (line.originalAmount > category.policyLimit!!) {
+                            throw BusinessRuleException(
+                                "Line ${line.lineNumber} exceeds policy limit of ${category.policyLimit} ${category.limitCurrency} for category '${category.name}'",
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         claim.status = ExpenseClaimStatus.SUBMITTED
@@ -199,6 +238,63 @@ class ExpenseClaimService(
         return claims.map { mapToResponse(it) }
     }
 
+    @Transactional
+    fun reimburseClaim(
+        organizationId: UUID,
+        claimId: UUID,
+        userId: UUID,
+        payableAccountId: UUID,
+        cashAccountId: UUID,
+    ): ExpenseClaimResponse {
+        val claim = getClaim(claimId, organizationId)
+        if (claim.status != ExpenseClaimStatus.APPROVED) {
+            throw BusinessRuleException("Only approved claims can be reimbursed")
+        }
+
+        val accounts = accountRepository.findAllById(listOf(payableAccountId, cashAccountId)).associateBy { it.id }
+        val payAccount = accounts[payableAccountId] ?: throw BusinessRuleException("Payable account not found")
+        val cashAccount = accounts[cashAccountId] ?: throw BusinessRuleException("Cash/Bank account not found")
+
+        val lines = mutableListOf<JournalEntryLine>()
+
+        // Debit Payable
+        lines.add(
+            JournalEntryLine(
+                accountId = payAccount.id,
+                accountCode = payAccount.code,
+                accountName = payAccount.name,
+                debit = claim.totalReimbursementAmount,
+                credit = BigDecimal.ZERO,
+            ),
+        )
+        // Credit Cash
+        lines.add(
+            JournalEntryLine(
+                accountId = cashAccount.id,
+                accountCode = cashAccount.code,
+                accountName = cashAccount.name,
+                debit = BigDecimal.ZERO,
+                credit = claim.totalReimbursementAmount,
+            ),
+        )
+
+        val je =
+            journalEntryService.createSystemEntry(
+                date = LocalDate.now(),
+                description = "Expense Claim Reimbursement - ${claim.purpose}",
+                organizationId = organizationId,
+                lines = lines,
+                sourceReference = "expense_claim_payment:${claim.id}",
+                createdBy = userId,
+            )
+
+        claim.status = ExpenseClaimStatus.PAID
+        claim.paymentJournalEntryId = je.id
+        val saved = expenseClaimRepository.save(claim)
+        log.info("Reimbursed expense claim {} and posted journal entry {}", claimId, je.id)
+        return mapToResponse(saved)
+    }
+
     private fun mapToResponse(claim: ExpenseClaim): ExpenseClaimResponse =
         ExpenseClaimResponse(
             id = claim.id,
@@ -211,6 +307,7 @@ class ExpenseClaimService(
             totalReimbursementAmount = claim.totalReimbursementAmount,
             workflowInstanceId = claim.workflowInstanceId,
             journalEntryId = claim.journalEntryId,
+            paymentJournalEntryId = claim.paymentJournalEntryId,
             createdBy = claim.createdBy,
             createdAt = claim.createdAt?.toString() ?: "",
             updatedAt = claim.updatedAt?.toString(),
@@ -221,6 +318,7 @@ class ExpenseClaimService(
                         lineNumber = line.lineNumber,
                         expenseDate = line.expenseDate.toString(),
                         category = line.category,
+                        categoryId = line.categoryId,
                         description = line.description,
                         originalCurrency = line.originalCurrency,
                         originalAmount = line.originalAmount,

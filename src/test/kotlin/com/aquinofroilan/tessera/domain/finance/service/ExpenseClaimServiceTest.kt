@@ -4,12 +4,15 @@ import com.aquinofroilan.tessera.domain.finance.dto.CreateExpenseClaimRequest
 import com.aquinofroilan.tessera.domain.finance.dto.ExpenseClaimLineRequest
 import com.aquinofroilan.tessera.domain.finance.model.Account
 import com.aquinofroilan.tessera.domain.finance.model.AccountType
+import com.aquinofroilan.tessera.domain.finance.model.ExpenseCategory
 import com.aquinofroilan.tessera.domain.finance.model.ExpenseClaim
+import com.aquinofroilan.tessera.domain.finance.model.ExpenseClaimLine
 import com.aquinofroilan.tessera.domain.finance.model.ExpenseClaimStatus
 import com.aquinofroilan.tessera.domain.finance.model.JournalEntry
 import com.aquinofroilan.tessera.domain.finance.model.JournalEntrySource
 import com.aquinofroilan.tessera.domain.finance.model.JournalEntryStatus
 import com.aquinofroilan.tessera.domain.finance.repository.AccountRepository
+import com.aquinofroilan.tessera.domain.finance.repository.ExpenseCategoryRepository
 import com.aquinofroilan.tessera.domain.finance.repository.ExpenseClaimRepository
 import com.aquinofroilan.tessera.exception.BusinessRuleException
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -30,6 +33,7 @@ class ExpenseClaimServiceTest {
     private val expenseClaimRepository: ExpenseClaimRepository = mock()
     private val accountRepository: AccountRepository = mock()
     private val journalEntryService: JournalEntryService = mock()
+    private val expenseCategoryRepository: ExpenseCategoryRepository = mock()
 
     private lateinit var expenseClaimService: ExpenseClaimService
 
@@ -44,6 +48,7 @@ class ExpenseClaimServiceTest {
                 expenseClaimRepository,
                 accountRepository,
                 journalEntryService,
+                expenseCategoryRepository,
             )
     }
 
@@ -181,5 +186,133 @@ class ExpenseClaimServiceTest {
         assertThrows(BusinessRuleException::class.java) {
             expenseClaimService.approveClaim(orgId, claimId, userId, UUID.randomUUID(), UUID.randomUUID())
         }
+    }
+
+    @Test
+    fun `reimburseClaim posts journal entry and updates status`() {
+        val claimId = UUID.randomUUID()
+        val claim =
+            ExpenseClaim(
+                id = claimId,
+                organizationId = orgId,
+                employeeId = empId,
+                claimDate = LocalDate.now(),
+                purpose = "Business Trip",
+                status = ExpenseClaimStatus.APPROVED,
+                reimbursementCurrency = "USD",
+                totalReimbursementAmount = BigDecimal("160.00"),
+                createdBy = userId,
+            )
+
+        val payAccountId = UUID.randomUUID()
+        val cashAccountId = UUID.randomUUID()
+
+        val payAccount = Account(id = payAccountId, organizationId = orgId, code = "PAY", name = "Payable", type = AccountType.LIABILITY)
+        val cashAccount = Account(id = cashAccountId, organizationId = orgId, code = "CASH", name = "Bank", type = AccountType.ASSET)
+
+        whenever(expenseClaimRepository.findById(claimId)).thenReturn(Optional.of(claim))
+        whenever(accountRepository.findAllById(any())).thenReturn(listOf(payAccount, cashAccount))
+        whenever(expenseClaimRepository.save(any<ExpenseClaim>())).thenAnswer { it.arguments[0] as ExpenseClaim }
+
+        val je =
+            JournalEntry(
+                id = UUID.randomUUID(),
+                entryNumber = "JE-002",
+                date = LocalDate.now(),
+                description = "",
+                organizationId = orgId,
+                status = JournalEntryStatus.POSTED,
+                source = JournalEntrySource.SYSTEM,
+                sourceReference = "",
+                lines = emptyList(),
+                createdBy = userId,
+            )
+        whenever(journalEntryService.createSystemEntry(any(), any(), any(), any(), any(), any())).thenReturn(je)
+
+        val response = expenseClaimService.reimburseClaim(orgId, claimId, userId, payAccountId, cashAccountId)
+
+        assertEquals(ExpenseClaimStatus.PAID, response.status)
+        assertEquals(je.id, response.paymentJournalEntryId)
+
+        verify(journalEntryService).createSystemEntry(
+            date = any(),
+            description = any(),
+            organizationId = eq(orgId),
+            lines = any(),
+            sourceReference = eq("expense_claim_payment:${claim.id}"),
+            createdBy = eq(userId),
+        )
+    }
+
+    @Test
+    fun `reimburseClaim throws exception if not approved`() {
+        val claimId = UUID.randomUUID()
+        val claim =
+            ExpenseClaim(
+                id = claimId,
+                organizationId = orgId,
+                employeeId = empId,
+                claimDate = LocalDate.now(),
+                purpose = "Business Trip",
+                status = ExpenseClaimStatus.SUBMITTED,
+                reimbursementCurrency = "USD",
+                createdBy = userId,
+            )
+        whenever(expenseClaimRepository.findById(claimId)).thenReturn(Optional.of(claim))
+
+        assertThrows(BusinessRuleException::class.java) {
+            expenseClaimService.reimburseClaim(orgId, claimId, userId, UUID.randomUUID(), UUID.randomUUID())
+        }
+    }
+
+    @Test
+    fun `submitClaim throws exception if policy limit exceeded`() {
+        val categoryId = UUID.randomUUID()
+        val claimId = UUID.randomUUID()
+
+        val claim =
+            ExpenseClaim(
+                id = claimId,
+                organizationId = orgId,
+                employeeId = empId,
+                claimDate = LocalDate.now(),
+                purpose = "Business Trip",
+                status = ExpenseClaimStatus.DRAFT,
+                reimbursementCurrency = "USD",
+                createdBy = userId,
+            )
+
+        val line =
+            ExpenseClaimLine(
+                lineNumber = 1,
+                expenseDate = LocalDate.now(),
+                category = "Meals",
+                categoryId = categoryId,
+                originalCurrency = "USD",
+                originalAmount = BigDecimal("100"),
+                reimbursementAmount = BigDecimal("100"),
+            )
+        claim.lines.add(line)
+
+        val category =
+            ExpenseCategory(
+                id = categoryId,
+                organizationId = orgId,
+                name = "Meals",
+                expenseAccountId = UUID.randomUUID(),
+                policyLimit = BigDecimal("50"),
+                limitCurrency = "USD",
+                createdBy = userId,
+            )
+
+        whenever(expenseClaimRepository.findById(claimId)).thenReturn(Optional.of(claim))
+        whenever(expenseCategoryRepository.findById(categoryId)).thenReturn(Optional.of(category))
+
+        val ex =
+            assertThrows(BusinessRuleException::class.java) {
+                expenseClaimService.submitClaim(orgId, claimId, userId)
+            }
+
+        assert(ex.message!!.contains("exceeds policy limit"))
     }
 }

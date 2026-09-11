@@ -17,6 +17,7 @@ data class ExpenseClaimLineRequest(
     @field:NotBlank(message = "Category is required")
     @field:Size(max = 100)
     val category: String?,
+    val categoryId: UUID? = null,
     @field:Size(max = 1000)
     val description: String? = null,
     @field:NotBlank(message = "Original currency is required")
@@ -52,6 +53,7 @@ data class ExpenseClaimLineResponse(
     val lineNumber: Int,
     val expenseDate: String,
     val category: String,
+    val categoryId: UUID?,
     val description: String?,
     val originalCurrency: String,
     val originalAmount: BigDecimal,
@@ -72,6 +74,7 @@ data class ExpenseClaimResponse(
     val totalReimbursementAmount: BigDecimal,
     val workflowInstanceId: UUID?,
     val journalEntryId: UUID?,
+    val paymentJournalEntryId: UUID?,
     val createdBy: UUID,
     val createdAt: String,
     val updatedAt: String?,

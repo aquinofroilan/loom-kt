@@ -19,6 +19,8 @@ data class ExpenseClaimLine(
     @Column(name = "expense_date")
     var expenseDate: LocalDate,
     var category: String,
+    @Column(name = "category_id", columnDefinition = "uuid")
+    var categoryId: UUID? = null,
     var description: String? = null,
     @Column(name = "original_currency")
     var originalCurrency: String,
