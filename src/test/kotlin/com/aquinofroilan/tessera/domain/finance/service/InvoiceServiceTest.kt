@@ -45,6 +45,8 @@ class InvoiceServiceTest {
     private lateinit var accountRepository: AccountRepository
     private lateinit var customerService: CustomerService
     private lateinit var journalEntryService: JournalEntryService
+
+    private lateinit var eventPublisher: org.springframework.context.ApplicationEventPublisher
     private lateinit var taxGroupService: TaxGroupService
     private lateinit var organizationRepository: OrganizationRepository
     private lateinit var currencyService: CurrencyService
@@ -64,6 +66,7 @@ class InvoiceServiceTest {
         organizationRepository = mock(OrganizationRepository::class.java)
         currencyService = mock(CurrencyService::class.java)
         exchangeRateService = mock(ExchangeRateService::class.java)
+        eventPublisher = mock(org.springframework.context.ApplicationEventPublisher::class.java)
         `when`(taxGroupService.calculateTaxAmount(anyOrNull(), any(), any()))
             .thenReturn(java.math.BigDecimal.ZERO)
         `when`(organizationRepository.findById(orgId)).thenReturn(
@@ -89,6 +92,7 @@ class InvoiceServiceTest {
                 accountRepository = accountRepository,
                 customerService = customerService,
                 journalEntryService = journalEntryService,
+                eventPublisher = eventPublisher,
                 taxGroupService = taxGroupService,
                 organizationRepository = organizationRepository,
                 currencyService = currencyService,
