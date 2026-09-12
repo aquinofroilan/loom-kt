@@ -1,4 +1,4 @@
-package com.aquinofroilan.tessera.domain.inventory.model
+package com.aquinofroilan.tessera.domain.sales.model
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -8,33 +8,31 @@ import jakarta.persistence.Table
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
+import java.math.BigDecimal
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
 @Entity
-@Table(name = "warehouses")
+@Table(name = "sales_targets")
 @EntityListeners(AuditingEntityListener::class)
-class Warehouse(
+class SalesTarget(
     @Id
     @Column(columnDefinition = "uuid")
     var id: java.util.UUID = java.util.UUID.ofEpochMillis(System.currentTimeMillis()),
-    var code: String,
-    var name: String,
-    var description: String? = null,
-    @Column(name = "address_line")
-    var addressLine: String? = null,
-    var city: String? = null,
-    var country: String? = null,
-    @Column(name = "allow_negative_stock")
-    var allowNegativeStock: Boolean = false,
+    @Column(name = "employee_id", columnDefinition = "uuid")
+    var employeeId: java.util.UUID? = null,
+    @Column(name = "department_id", columnDefinition = "uuid")
+    var departmentId: java.util.UUID? = null,
+    @Column(name = "period_start")
+    var periodStart: LocalDate,
+    @Column(name = "period_end")
+    var periodEnd: LocalDate,
+    @Column(name = "target_amount")
+    var targetAmount: BigDecimal,
+    var currency: String,
     @Column(name = "organization_id", columnDefinition = "uuid")
     var organizationId: java.util.UUID,
-    @Column(name = "is_active")
-    var isActive: Boolean = true,
-    @Column(name = "is_consignment")
-    var isConsignment: Boolean = false,
-    @Column(name = "customer_id", columnDefinition = "uuid")
-    var customerId: java.util.UUID? = null,
     @CreatedDate
     @Column(name = "created_at")
     var createdAt: LocalDateTime? = null,

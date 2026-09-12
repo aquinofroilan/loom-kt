@@ -31,4 +31,14 @@ interface InvoiceRepository : JpaRepository<Invoice, java.util.UUID> {
     ): List<Invoice>
 
     fun countByOrganizationId(organizationId: java.util.UUID): Long
+
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT COALESCE(SUM(i.totalAmount), 0) FROM Invoice i WHERE i.organizationId = :organizationId AND i.salespersonId = :salespersonId AND i.date >= :startDate AND i.date <= :endDate AND i.status NOT IN ('DRAFT', 'VOID')",
+    )
+    fun sumAmountBySalespersonAndPeriod(
+        @org.springframework.data.repository.query.Param("organizationId") organizationId: java.util.UUID,
+        @org.springframework.data.repository.query.Param("salespersonId") salespersonId: java.util.UUID,
+        @org.springframework.data.repository.query.Param("startDate") startDate: java.time.LocalDate,
+        @org.springframework.data.repository.query.Param("endDate") endDate: java.time.LocalDate,
+    ): java.math.BigDecimal
 }

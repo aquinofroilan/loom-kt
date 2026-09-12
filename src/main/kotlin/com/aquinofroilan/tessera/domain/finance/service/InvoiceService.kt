@@ -5,6 +5,7 @@ import com.aquinofroilan.tessera.domain.finance.dto.ArAgingReportResponse
 import com.aquinofroilan.tessera.domain.finance.dto.CreateInvoiceRequest
 import com.aquinofroilan.tessera.domain.finance.dto.CustomerAgingResponse
 import com.aquinofroilan.tessera.domain.finance.dto.RecordReceiptRequest
+import com.aquinofroilan.tessera.domain.finance.event.InvoiceApprovedEvent
 import com.aquinofroilan.tessera.domain.finance.model.Account
 import com.aquinofroilan.tessera.domain.finance.model.Invoice
 import com.aquinofroilan.tessera.domain.finance.model.InvoiceLine
@@ -18,6 +19,7 @@ import com.aquinofroilan.tessera.domain.organization.repository.OrganizationRepo
 import com.aquinofroilan.tessera.domain.sales.service.CustomerService
 import com.aquinofroilan.tessera.exception.BusinessRuleException
 import com.aquinofroilan.tessera.exception.ResourceNotFoundException
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -36,6 +38,7 @@ class InvoiceService(
     private val accountRepository: AccountRepository,
     private val customerService: CustomerService,
     private val journalEntryService: JournalEntryService,
+    private val eventPublisher: ApplicationEventPublisher,
     private val taxGroupService: TaxGroupService,
     private val organizationRepository: OrganizationRepository,
     private val currencyService: CurrencyService,
@@ -257,7 +260,9 @@ class InvoiceService(
         invoice.journalEntryId = journalEntry.id
         invoice.approvedAt = now
         invoice.approvedBy = approvedBy
-        return invoiceRepository.save(invoice)
+        val savedInvoice = invoiceRepository.save(invoice)
+        eventPublisher.publishEvent(InvoiceApprovedEvent(savedInvoice))
+        return savedInvoice
     }
 
     @Transactional
@@ -280,7 +285,9 @@ class InvoiceService(
             invoice.voidedAt = now
             invoice.voidedBy = voidedBy
             invoice.voidReason = reason
-            return invoiceRepository.save(invoice)
+            val savedInvoice = invoiceRepository.save(invoice)
+            eventPublisher.publishEvent(InvoiceApprovedEvent(savedInvoice))
+            return savedInvoice
         }
 
         if (invoice.amountReceived.compareTo(BigDecimal.ZERO) != 0) {
@@ -300,7 +307,9 @@ class InvoiceService(
         invoice.voidedAt = now
         invoice.voidedBy = voidedBy
         invoice.voidReason = reason
-        return invoiceRepository.save(invoice)
+        val savedInvoice = invoiceRepository.save(invoice)
+        eventPublisher.publishEvent(InvoiceApprovedEvent(savedInvoice))
+        return savedInvoice
     }
 
     @Transactional

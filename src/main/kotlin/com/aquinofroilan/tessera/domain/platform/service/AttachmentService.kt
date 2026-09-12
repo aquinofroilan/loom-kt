@@ -60,6 +60,39 @@ class AttachmentService(
         )
     }
 
+    @Transactional
+    fun uploadBytes(
+        bytes: ByteArray,
+        filename: String,
+        mimeType: String,
+        entityType: String,
+        entityId: java.util.UUID,
+        organizationId: java.util.UUID,
+        userId: java.util.UUID,
+    ): Attachment {
+        if (bytes.isEmpty()) throw BusinessRuleException("Uploaded file is empty")
+        if (entityType.isBlank()) throw BusinessRuleException("entityType is required")
+        val cleanFilename = sanitiseFilename(filename)
+        val attachmentId = java.util.UUID.randomUUID()
+        val relativeKey = "$organizationId/$entityType/$entityId/$attachmentId-$cleanFilename"
+        val target = resolvePath(relativeKey)
+        Files.createDirectories(target.parent)
+        Files.write(target, bytes)
+        return attachmentRepository.save(
+            Attachment(
+                id = attachmentId,
+                organizationId = organizationId,
+                entityType = entityType,
+                entityId = entityId,
+                filename = cleanFilename,
+                mimeType = mimeType,
+                sizeBytes = bytes.size.toLong(),
+                storageKey = relativeKey,
+                uploadedBy = userId,
+            ),
+        )
+    }
+
     fun getAttachment(
         id: java.util.UUID,
         organizationId: java.util.UUID,

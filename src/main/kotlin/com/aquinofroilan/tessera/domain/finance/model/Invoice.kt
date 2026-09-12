@@ -70,6 +70,8 @@ class Invoice(
     var organizationId: java.util.UUID,
     @Enumerated(EnumType.STRING)
     var status: InvoiceStatus = InvoiceStatus.DRAFT,
+    @Column(name = "salesperson_id", columnDefinition = "uuid")
+    var salespersonId: java.util.UUID? = null,
     @OneToMany(
         cascade = [CascadeType.ALL],
         orphanRemoval = true,
