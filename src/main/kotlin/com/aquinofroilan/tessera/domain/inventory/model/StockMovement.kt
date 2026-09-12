@@ -38,8 +38,12 @@ class StockMovement(
     var productId: java.util.UUID,
     @Column(name = "warehouse_id", columnDefinition = "uuid")
     var warehouseId: java.util.UUID,
+    @Column(name = "bin_id", columnDefinition = "uuid")
+    var binId: java.util.UUID? = null,
     @Column(name = "transfer_to_warehouse_id", columnDefinition = "uuid")
     var transferToWarehouseId: java.util.UUID? = null,
+    @Column(name = "transfer_to_bin_id", columnDefinition = "uuid")
+    var transferToBinId: java.util.UUID? = null,
     var quantity: BigDecimal,
     @Column(name = "unit_cost")
     var unitCost: BigDecimal? = null,

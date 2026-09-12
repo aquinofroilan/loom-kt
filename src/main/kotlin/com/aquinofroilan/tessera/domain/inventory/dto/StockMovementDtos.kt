@@ -13,7 +13,9 @@ data class CreateStockMovementRequest(
     val productId: java.util.UUID,
     @field:NotNull(message = "Warehouse ID is required")
     val warehouseId: java.util.UUID,
+    val binId: java.util.UUID? = null,
     val transferToWarehouseId: java.util.UUID? = null,
+    val transferToBinId: java.util.UUID? = null,
     @field:NotNull(message = "Quantity is required")
     val quantity: BigDecimal?,
     val unitCost: BigDecimal? = null,
@@ -29,6 +31,7 @@ data class StockMovementResponse(
     val type: StockMovementType,
     val productId: java.util.UUID,
     val warehouseId: java.util.UUID,
+    val binId: java.util.UUID? = null,
     val transferToWarehouseId: java.util.UUID?,
     val quantity: BigDecimal,
     val unitCost: BigDecimal?,
@@ -43,5 +46,6 @@ data class StockMovementResponse(
 data class OnHandResponse(
     val productId: java.util.UUID,
     val warehouseId: java.util.UUID,
+    val binId: java.util.UUID? = null,
     val quantity: BigDecimal,
 )

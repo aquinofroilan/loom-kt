@@ -8,26 +8,49 @@ import jakarta.persistence.Table
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
-import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.UUID
 
 @Entity
-@Table(name = "stock_on_hand")
+@Table(name = "warehouse_zones")
 @EntityListeners(AuditingEntityListener::class)
-class StockOnHand(
+class WarehouseZone(
     @Id
     @Column(columnDefinition = "uuid")
     var id: java.util.UUID = java.util.UUID.ofEpochMillis(System.currentTimeMillis()),
-    @Column(name = "organization_id", columnDefinition = "uuid")
-    var organizationId: java.util.UUID,
-    @Column(name = "product_id", columnDefinition = "uuid")
-    var productId: java.util.UUID,
     @Column(name = "warehouse_id", columnDefinition = "uuid")
     var warehouseId: java.util.UUID,
-    @Column(name = "bin_id", columnDefinition = "uuid")
-    var binId: java.util.UUID? = null,
-    var quantity: BigDecimal = BigDecimal.ZERO,
+    var code: String,
+    var name: String,
+    var description: String? = null,
+    @Column(name = "organization_id", columnDefinition = "uuid")
+    var organizationId: java.util.UUID,
+    @CreatedDate
+    @Column(name = "created_at")
+    var createdAt: LocalDateTime? = null,
+    @LastModifiedDate
+    @Column(name = "updated_at")
+    var updatedAt: LocalDateTime? = null,
+)
+
+@Entity
+@Table(name = "warehouse_bins")
+@EntityListeners(AuditingEntityListener::class)
+class WarehouseBin(
+    @Id
+    @Column(columnDefinition = "uuid")
+    var id: java.util.UUID = java.util.UUID.ofEpochMillis(System.currentTimeMillis()),
+    @Column(name = "warehouse_id", columnDefinition = "uuid")
+    var warehouseId: java.util.UUID,
+    @Column(name = "zone_id", columnDefinition = "uuid")
+    var zoneId: java.util.UUID? = null,
+    var code: String,
+    var name: String,
+    var description: String? = null,
+    @Column(name = "is_active")
+    var isActive: Boolean = true,
+    @Column(name = "organization_id", columnDefinition = "uuid")
+    var organizationId: java.util.UUID,
     @CreatedDate
     @Column(name = "created_at")
     var createdAt: LocalDateTime? = null,

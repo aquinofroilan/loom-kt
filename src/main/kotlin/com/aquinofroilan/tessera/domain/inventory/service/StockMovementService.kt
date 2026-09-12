@@ -48,7 +48,9 @@ class StockMovementService(
                 type = type,
                 productId = request.productId,
                 warehouseId = request.warehouseId,
+                binId = request.binId,
                 transferToWarehouseId = request.transferToWarehouseId,
+                transferToBinId = request.transferToBinId,
                 quantity = quantity,
                 unitCost = request.unitCost,
                 reference = request.reference,
@@ -177,6 +179,7 @@ class StockMovementService(
                     type = StockMovementType.ADJUSTMENT,
                     productId = original.productId,
                     warehouseId = original.warehouseId,
+                    binId = original.binId,
                     quantity = inverseQuantity,
                     unitCost = unitCost,
                     reference = "REVERSAL-${original.reference ?: original.id}",
@@ -205,7 +208,8 @@ class StockMovementService(
         organizationId: java.util.UUID,
         productId: java.util.UUID,
         warehouseId: java.util.UUID,
-    ): BigDecimal = stockOnHandRepository.get(organizationId, productId, warehouseId)
+        binId: java.util.UUID? = null,
+    ): BigDecimal = stockOnHandRepository.get(organizationId, productId, warehouseId, binId)
 
     private fun validateQuantitySign(
         type: StockMovementType,
@@ -293,11 +297,12 @@ class StockMovementService(
                     organizationId,
                     request.productId,
                     sourceWarehouse.id,
+                    request.binId,
                     sourceDelta,
                     allowNegative = sourceWarehouse.allowNegativeStock,
                 )
             if (!ok) {
-                val current = stockOnHandRepository.get(organizationId, request.productId, sourceWarehouse.id)
+                val current = stockOnHandRepository.get(organizationId, request.productId, sourceWarehouse.id, request.binId)
                 throw BusinessRuleException(
                     "Movement would drive on-hand below zero in warehouse '${sourceWarehouse.code}' " +
                         "(current $current, requested $quantity); enable allowNegativeStock to permit",
@@ -311,6 +316,7 @@ class StockMovementService(
                 organizationId,
                 request.productId,
                 destWarehouse.id,
+                request.transferToBinId,
                 quantity,
                 allowNegative = true,
             )
