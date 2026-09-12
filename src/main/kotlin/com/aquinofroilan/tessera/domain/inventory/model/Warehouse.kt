@@ -31,6 +31,10 @@ class Warehouse(
     var organizationId: java.util.UUID,
     @Column(name = "is_active")
     var isActive: Boolean = true,
+    @Column(name = "is_consignment")
+    var isConsignment: Boolean = false,
+    @Column(name = "customer_id", columnDefinition = "uuid")
+    var customerId: java.util.UUID? = null,
     @CreatedDate
     @Column(name = "created_at")
     var createdAt: LocalDateTime? = null,
